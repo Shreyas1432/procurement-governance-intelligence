@@ -1,0 +1,8 @@
+{
+  "query": "competition/procedure_distribution.sql",
+  "records": 12,
+  "rq": "RQ2",
+  "generated_at": "2026-06-02T14:14:28.732069+00:00",
+  "dataset": "GTI Procurement Dataset",
+  "intermediate_parquet": "/Users/shreyas/Shreyas/NCI_Sub/Sem 2/Practicum/Project_Main/results/eda/intermediate/procedure_distribution.parquet"
+}

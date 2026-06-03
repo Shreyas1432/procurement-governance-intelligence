@@ -1,0 +1,8 @@
+{
+  "query": "network/centrality_summary.sql",
+  "records": 239,
+  "rq": "RQ1",
+  "generated_at": "2026-06-02T14:14:26.123926+00:00",
+  "dataset": "GTI Procurement Dataset",
+  "intermediate_parquet": "/Users/shreyas/Shreyas/NCI_Sub/Sem 2/Practicum/Project_Main/results/eda/intermediate/centrality_distribution.parquet"
+}

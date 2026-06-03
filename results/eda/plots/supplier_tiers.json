@@ -1,0 +1,8 @@
+{
+  "query": "ecosystem/supplier_tiers.sql",
+  "records": 4,
+  "rq": "RQ1",
+  "generated_at": "2026-06-02T14:14:23.526745+00:00",
+  "dataset": "GTI Procurement Dataset",
+  "intermediate_parquet": "/Users/shreyas/Shreyas/NCI_Sub/Sem 2/Practicum/Project_Main/results/eda/intermediate/supplier_tiers.parquet"
+}

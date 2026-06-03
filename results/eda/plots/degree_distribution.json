@@ -1,0 +1,8 @@
+{
+  "query": "network/degree_distribution.sql",
+  "records": 218,
+  "rq": "RQ1",
+  "generated_at": "2026-06-02T14:14:24.393986+00:00",
+  "dataset": "GTI Procurement Dataset",
+  "intermediate_parquet": "/Users/shreyas/Shreyas/NCI_Sub/Sem 2/Practicum/Project_Main/results/eda/intermediate/degree_distribution.parquet"
+}

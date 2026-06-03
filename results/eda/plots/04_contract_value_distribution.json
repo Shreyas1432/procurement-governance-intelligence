@@ -1,0 +1,7 @@
+{
+  "query": "01_data_quality.sql",
+  "records": 1000,
+  "key_statistic": "Median: EUR 1,545.16",
+  "generated_at": "2026-06-02T16:45:41.195050+00:00",
+  "dataset": "Italian GPPD"
+}

@@ -1,0 +1,7 @@
+{
+  "query": "06_temporal_analysis.sql",
+  "records": 7,
+  "key_statistic": "Peak volume year: 2014",
+  "generated_at": "2026-06-02T16:45:39.009120+00:00",
+  "dataset": "Italian GPPD"
+}

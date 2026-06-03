@@ -1,0 +1,8 @@
+{
+  "query": "cross_rq/risk_overlap.sql",
+  "records": 3,
+  "rq": "RQ1/RQ2/RQ3",
+  "generated_at": "2026-06-02T14:14:36.533794+00:00",
+  "dataset": "GTI Procurement Dataset",
+  "intermediate_parquet": "/Users/shreyas/Shreyas/NCI_Sub/Sem 2/Practicum/Project_Main/results/eda/intermediate/risk_overlap_sankey.parquet"
+}

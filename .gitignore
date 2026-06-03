@@ -1,0 +1,63 @@
+# Data — never commit raw or processed data
+data/raw/
+data/curated/
+data/features/
+data/models/
+data/results/
+
+# Generated dist — rebuilt by make strip
+dist/
+
+# Environment
+.venv/
+*.env
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Kaleido temp files
+orca_config.json
+
+# Data — never commit
+data/raw/
+data/curated/
+data/features/
+data/models/
+data/results/
+Dataset/*.parquet
+Dataset/*.csv
+Dataset/simulated*
+Dataset/procurement_risk*
+Dataset/rq1_filtered*
+
+# Generated clean version
+dist/
+
+# Environment
+.venv/
+*.env
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/

@@ -1,0 +1,7 @@
+{
+  "query": "04_procedure_analysis.sql",
+  "records": 1000,
+  "key_statistic": "Median bid count: 1.0",
+  "generated_at": "2026-06-02T16:45:50.159237+00:00",
+  "dataset": "Italian GPPD"
+}

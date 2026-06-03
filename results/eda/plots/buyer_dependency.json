@@ -1,0 +1,8 @@
+{
+  "query": "ecosystem/buyer_dependency.sql",
+  "records": 3,
+  "rq": "RQ1/RQ2",
+  "generated_at": "2026-06-02T14:14:22.654562+00:00",
+  "dataset": "GTI Procurement Dataset",
+  "intermediate_parquet": "/Users/shreyas/Shreyas/NCI_Sub/Sem 2/Practicum/Project_Main/results/eda/intermediate/buyer_dependency.parquet"
+}

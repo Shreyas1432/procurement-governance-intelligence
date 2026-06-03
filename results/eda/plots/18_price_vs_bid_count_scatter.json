@@ -1,0 +1,7 @@
+{
+  "query": "12_feature_competition_risk.sql",
+  "records": 1000,
+  "key_statistic": "Scatter plot generated",
+  "generated_at": "2026-06-02T16:45:53.550107+00:00",
+  "dataset": "Italian GPPD"
+}

@@ -1,0 +1,5 @@
+feature,rows,mean_value,completeness
+buyer_concentration_hhi,714681,0.11826843935651506,1.0
+single_bid_rate,714681,0.028367901203474,1.0
+cpv_risk_score,714681,0.665236937878578,1.0
+award_year,714681,2017.218242824421,1.0

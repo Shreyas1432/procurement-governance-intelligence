@@ -1,0 +1,10 @@
+[project]
+name = "procurement-governance-intelligence"
+version = "0.1.0"
+description = "SQL-first procurement governance intelligence for Italian public procurement data"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"

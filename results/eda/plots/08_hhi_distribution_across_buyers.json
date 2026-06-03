@@ -1,0 +1,7 @@
+{
+  "query": "10_feature_buyer_dependency.sql",
+  "records": 18357,
+  "key_statistic": "Highly concentrated buyers (HHI > 0.25): 54.10%",
+  "generated_at": "2026-06-02T16:45:44.742440+00:00",
+  "dataset": "Italian GPPD"
+}

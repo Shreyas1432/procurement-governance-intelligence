@@ -1,0 +1,7 @@
+{
+  "query": "05_cpv_coverage.sql",
+  "records": 15,
+  "key_statistic": "Top CPV: 33",
+  "generated_at": "2026-06-02T16:45:51.829060+00:00",
+  "dataset": "Italian GPPD"
+}

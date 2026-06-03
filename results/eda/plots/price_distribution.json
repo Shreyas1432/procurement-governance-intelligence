@@ -1,0 +1,8 @@
+{
+  "query": "pricing/price_distribution.sql",
+  "records": 5,
+  "rq": "RQ3",
+  "generated_at": "2026-06-02T14:14:31.332725+00:00",
+  "dataset": "GTI Procurement Dataset",
+  "intermediate_parquet": "/Users/shreyas/Shreyas/NCI_Sub/Sem 2/Practicum/Project_Main/results/eda/intermediate/price_distribution.parquet"
+}

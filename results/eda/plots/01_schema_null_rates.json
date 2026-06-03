@@ -1,0 +1,7 @@
+{
+  "query": "00_schema_audit.sql",
+  "records": 18,
+  "key_statistic": "Max null rate: 99.92%",
+  "generated_at": "2026-06-02T16:45:38.178130+00:00",
+  "dataset": "Italian GPPD"
+}

@@ -1,0 +1,8 @@
+{
+  "query": "ecosystem/hhi_analysis.sql",
+  "records": 18357,
+  "rq": "RQ1",
+  "generated_at": "2026-06-02T14:14:21.786397+00:00",
+  "dataset": "GTI Procurement Dataset",
+  "intermediate_parquet": "/Users/shreyas/Shreyas/NCI_Sub/Sem 2/Practicum/Project_Main/results/eda/intermediate/lorenz_curve.parquet"
+}

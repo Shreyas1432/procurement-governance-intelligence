@@ -1,0 +1,7 @@
+{
+  "query": "04_procedure_analysis.sql",
+  "records": 12,
+  "key_statistic": "Direct award has higher single bid rate",
+  "generated_at": "2026-06-02T16:45:49.146888+00:00",
+  "dataset": "Italian GPPD"
+}

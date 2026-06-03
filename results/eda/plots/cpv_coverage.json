@@ -1,0 +1,8 @@
+{
+  "query": "pricing/cpv_coverage.sql",
+  "records": 12,
+  "rq": "RQ3",
+  "generated_at": "2026-06-02T14:14:30.465346+00:00",
+  "dataset": "GTI Procurement Dataset",
+  "intermediate_parquet": "/Users/shreyas/Shreyas/NCI_Sub/Sem 2/Practicum/Project_Main/results/eda/intermediate/cpv_coverage.parquet"
+}
