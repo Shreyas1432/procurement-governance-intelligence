@@ -98,11 +98,3 @@ export PGI_GRAPH_EDGE_LIMIT=60000   # constrain graph computation locally
 3. A leakage-controlled governance risk modeling workflow.
 4. A CPV-constrained price anomaly workflow that avoids comparing structurally different categories.
 5. A cross-RQ integration layer connecting network dependence, governance probability, and price anomaly evidence.
-
-## Documentation
-
-- [Repository audit](docs/repository_audit.md)
-- [Refactor summary](docs/refactor_summary.md)
-- [Supervisor update](docs/supervisor_updates/current_project_state.md)
-- [Methodology notes](docs/methodology/)
-- [Test strategy](tests/README.md)
