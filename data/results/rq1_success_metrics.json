@@ -1,0 +1,63 @@
+{
+  "nodes": 161695,
+  "edges": 296306,
+  "networkx_available": true,
+  "modularity": 0.7258442594065818,
+  "resilience_std": 0.2699247540590465,
+  "dependency_single_bidder_corr": 0.052000027540216584,
+  "modularity_null_mean": 0.7735749169870689,
+  "modularity_null_std": 0.0016747645648171286,
+  "modularity_zscore": -28.499920874370144,
+  "modularity_pvalue": 1.0,
+  "modularity_significant": false,
+  "components_count": 677,
+  "giant_nodes_count": 159893,
+  "giant_component_frac": 0.9888555613964563,
+  "component_size_distribution": {
+    "size_1": 0,
+    "size_2": 465,
+    "size_3_10": 205,
+    "size_gt_10": 7
+  },
+  "modularity_giant": 0.7136549248280688,
+  "conductance_giant_mean": 0.28078831614572314,
+  "conductance_giant_median": 0.2581273053802063,
+  "conductance_giant_low_frac": 0.6419753086419753,
+  "ari_giant_mean": 0.5462297799565976,
+  "ari_giant_min": 0.4618020713598502,
+  "ari_giant_median": 0.5134563867657369,
+  "ari_giant_max": 0.7301715177662449,
+  "conductance_mean": 0.0267725568476892,
+  "conductance_median": 0.0,
+  "conductance_low_frac": 0.9624161073825503,
+  "ari_mean": 0.5572814779882577,
+  "ari_min": 0.4989001164653869,
+  "ari_median": 0.5567453634772346,
+  "ari_max": 0.6349209179294307,
+  "ari_topk_mean": 0.5560214135929592,
+  "seed": 42,
+  "ari_seeds": [
+    42,
+    892,
+    7739,
+    6545,
+    4388
+  ],
+  "criteria": {
+    "modularity": true,
+    "resilience_std": true
+  },
+  "reported_diagnostics": {
+    "dependency_single_bidder_corr": 0.052000027540216584,
+    "single_bidder_buyers_observed": 168,
+    "single_bidder_buyer_coverage": 0.009151822193168818,
+    "ari_mean": 0.5572814779882577,
+    "ari_target": 0.7,
+    "conductance_mean": 0.0267725568476892,
+    "conductance_median": 0.0,
+    "conductance_low_frac": 0.9624161073825503,
+    "giant_component_frac": 0.9888555613964563,
+    "modularity_giant": 0.7136549248280688,
+    "ari_giant": 0.5462297799565976
+  }
+}
