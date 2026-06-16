@@ -1,0 +1,244 @@
+{
+  "rf_f1": 0.4939285044097888,
+  "rf_cv_f1": 0.8801550909211558,
+  "rf_auc": 0.7037769330663864,
+  "xgb_auc": 0.825809150694147,
+  "lr_auc": 0.8077763740469803,
+  "ensemble_auc": 0.8230667144911361,
+  "rf_top3_features": [
+    "contract_value_log"
+  ],
+  "xgb_top3_features": [
+    "contract_value_log"
+  ],
+  "split_strategy": "configured_temporal",
+  "train_n": 471136,
+  "test_n": 123340,
+  "train_years": [
+    2014,
+    2018
+  ],
+  "test_years": [
+    2020,
+    2020
+  ],
+  "test_headline": {
+    "roc_auc": 0.825809150694147,
+    "pr_auc": 0.833595996707011,
+    "f1": 0.5722489450627596,
+    "precision": 0.4117391514215379,
+    "recall": 0.9378573313396077,
+    "confusion_matrix": {
+      "tn": 16929,
+      "fp": 60935,
+      "fn": 2826,
+      "tp": 42650
+    },
+    "operating_threshold": 0.3560599982738495,
+    "threshold_selection_rule": "argmax F1 on VAL 2019, frozen and applied to TEST 2020 (test labels never used in threshold selection)",
+    "f1_at_0p5": 0.7661779675581349,
+    "precision_at_0p5": 0.9605860708721451,
+    "recall_at_0p5": 0.6372152344093588,
+    "confusion_matrix_at_0p5": {
+      "tn": 76675,
+      "fp": 1189,
+      "fn": 16498,
+      "tp": 28978
+    },
+    "headline_model": "xgboost",
+    "val_n": 120205,
+    "val_years": [
+      2019,
+      2019
+    ],
+    "class_balance": {
+      "0": 600548,
+      "1": 114133
+    },
+    "positive_rate": 0.1596978232246275,
+    "framing_label": "2020 point estimate"
+  },
+  "xgb_auc_cv_shuffled": {
+    "mean": 0.7086318974067501,
+    "std": 0.0041930227624668494,
+    "ci95": [
+      0.7004135727923151,
+      0.7168502220211852
+    ],
+    "folds": [
+      0.7164145064517304,
+      0.7067985911841319,
+      0.705670255284943,
+      0.7048204387545827,
+      0.7094556953583627
+    ]
+  },
+  "xgb_auc_cv_temporal": {
+    "mean": 0.6117543152854443,
+    "std": 0.13834898686233899,
+    "ci95": [
+      0.34059030103525995,
+      0.8829183295356287
+    ],
+    "folds": [
+      0.4793629876963398,
+      0.5610677978974694,
+      0.8441946808767602,
+      0.5623917946712077
+    ],
+    "framing_label": "generalisation estimate (forward-chaining temporal CV)"
+  },
+  "n_high_risk": 46586,
+  "n_low_risk": 493028,
+  "high_risk_amendment_rate": 0.3550637530588589,
+  "low_risk_amendment_rate": 6.0848471080749974e-05,
+  "enrichment_ratio": 5835.21240143677,
+  "rgov_single_bidder_corr": null,
+  "single_bid_rate": 0.2048283666540928,
+  "negotiated_restricted_rate": 0.051418324501563084,
+  "populations": {
+    "classifier_population": {
+      "definition": "Full year-stratified 2014-2020 panel; rows with a risk_label and contract_value_log, temporally split into TRAIN/VAL/TEST. This is the population the classifier is fit and evaluated on.",
+      "filter": "award_year in [2014..2020]; TRAIN 2014-2018, VAL 2019, TEST 2020",
+      "n_total": 714681,
+      "train": {
+        "years": [
+          2014,
+          2018
+        ],
+        "n": 471136,
+        "label_positives": 56225
+      },
+      "val": {
+        "years": [
+          2019,
+          2019
+        ],
+        "n": 120205,
+        "label_positives": 12432
+      },
+      "test": {
+        "years": [
+          2020,
+          2020
+        ],
+        "n": 123340,
+        "label_positives": 45476
+      },
+      "label_positives_total": 114133,
+      "positive_rate": 0.1596978232246275,
+      "note": "label_positives_total reconciles to the binary class-1 count (class_balance['1'])."
+    },
+    "rgov_scored_population": {
+      "definition": "Contracts that receive an HONEST ensemble risk score (R_gov): TRAIN rows scored out-of-fold + TEST rows scored held-out. VAL 2019 is EXCLUDED because it is used only to select the operating threshold and is never scored.",
+      "filter": "award_year in TRAIN_YEARS (out-of-fold) UNION award_year in TEST_YEARS (held-out); VAL 2019 excluded",
+      "n_total": 594476,
+      "n_train_out_of_fold": 471136,
+      "n_test_held_out": 123340,
+      "why_differs_from_classifier_population": "Excludes the 120,205 VAL-2019 rows (threshold-selection only, never scored): 714,681 panel - 120,205 VAL = 594,476 scored.",
+      "risk_buckets": {
+        "bucket_rule": "ensemble_risk_prob >= 0.75 -> HIGH; >= 0.45 -> MEDIUM; else LOW",
+        "is_rgov_score_bucket_not_classifier_label": true,
+        "HIGH": 46586,
+        "MEDIUM": 54862,
+        "LOW": 493028,
+        "high_plus_low": 539614,
+        "reconciliation_note": "n_high_risk + n_low_risk = 539,614 EXCLUDES the 54,862 MEDIUM rows and the 120,205 VAL rows; it is NOT the classifier population (714,681) and not the scored population (594,476)."
+      }
+    },
+    "enrichment_population": {
+      "definition": "high_risk_amendment_rate, low_risk_amendment_rate and enrichment_ratio are computed over the HIGH and LOW R_gov SCORE buckets of the rgov_scored_population (NOT the classifier label).",
+      "high_low_are_rgov_score_buckets": true,
+      "enrichment_denominator": {
+        "high_risk_n": 46586,
+        "low_risk_n": 493028
+      }
+    }
+  },
+  "enrichment_population": "rgov_scored_population HIGH and LOW R_gov score buckets (NOT the classifier label)",
+  "enrichment_denominator": {
+    "high_risk_n": 46586,
+    "low_risk_n": 493028
+  },
+  "single_bidder_definitions": {
+    "note": "All rates are 'single-bidder among OBSERVED lots' (bid_count <= 1 where bid_count is non-null); they differ only by POPULATION and denominator, not definition. bid_count (lot_bidscount) coverage is sparse (~1.6% raw / ~3.6% scored panel), so the choice of denominator matters.",
+    "rq2_scored_observed": {
+      "rate": 0.2048283666540928,
+      "definition": "single-bidder (bid_count <= 1) among rgov_scored_population contracts with non-null bid_count -- the value currently reported as single_bid_rate.",
+      "population": "rgov_scored_population (TRAIN out-of-fold + TEST held-out; VAL excluded)",
+      "denominator": "scored contracts with non-null bid_count",
+      "n_observed": 21208,
+      "n_population": 594476,
+      "coverage_fraction": 0.035675115563958845,
+      "is_current_single_bid_rate": true
+    },
+    "panel_observed": {
+      "rate": 0.2082364208510056,
+      "definition": "single-bidder (bid_count <= 1) among full 2014-2020 panel contracts with non-null bid_count.",
+      "population": "classifier_population (TRAIN+VAL+TEST)",
+      "denominator": "panel contracts with non-null bid_count",
+      "n_observed": 21927,
+      "n_population": 714681,
+      "coverage_fraction": 0.030680821233529366
+    },
+    "raw_dataset_observed_eda": {
+      "rate": 0.298,
+      "rate_train_window_2014_2018": 0.313,
+      "definition": "single-bidder rate among OBSERVED lots (lot_bidscount non-null) over the FULL raw ANAC dataset -- the 29.8% figure cited in the thesis.",
+      "population": "full raw IT_DIB_2023 dataset (~12.1M lot-level rows)",
+      "denominator": "raw lots with non-null lot_bidscount (~192K, ~1.6%)",
+      "source": "docs/THRESHOLD_JUSTIFICATION.md Section 6 (bid-count field correction); an EDA-stage figure, NOT recomputed in the RQ2 run.",
+      "is_thesis_cited_29_8pct": true
+    },
+    "recommendation": "Cite ONE definition consistently. The thesis 29.8% is the full-raw-dataset observed-lot rate; the RQ2 module reports the scored-panel observed-lot rate. They agree in DEFINITION and differ only in POPULATION/denominator."
+  },
+  "rgov_single_bidder_corr_status": {
+    "value": null,
+    "status": "degenerate_low_coverage",
+    "n_buyers_total": 17289,
+    "n_buyers_nonnull_single_bid_rate": 150,
+    "buyer_coverage_fraction": 0.008676036786395974,
+    "contract_coverage_fraction": 0.035675115563958845,
+    "variance_single_bid_rate_observed": 0.16282327466921043,
+    "denominator": "buyer-level rows of rgov_scored_population; single_bid_rate is defined only for buyers with at least one observed bid_count.",
+    "exact_zero_mechanism": "FIXED 2026-06-15. Previously single_bid_rate was null for buyers with no observed bid_count, the full-array np.std was NaN, the 'std > 0' guard was False, pearsonr was skipped and the function returned a fabricated 0.0. The metric now drops null pairs and reports an explicit 3-state result; at this coverage the state is 'degenerate_low_coverage' and the headline value is null.",
+    "observed_value": -0.16786203951309314,
+    "interpretation": "Uninformative at this coverage (mirrors the RQ1 dependency_single_bidder_corr limitation, Section 9). The observed-only r is reported in 'observed_value' but is computed on an unrepresentative minority of buyers. Reported, not gated; relocated to rq2_feature_exploration_nulls.json."
+  },
+  "auc_significance": {
+    "method": "DeLong paired AUC-difference test (fast closed-form, Sun & Xu 2014 / DeLong et al. 1988); no bootstrap, deterministic.",
+    "test_set": "2020 hold-out TEST",
+    "n": 123340,
+    "n_positive": 45476,
+    "xgb_minus_lr": {
+      "comparison": "XGB - LR",
+      "auc_a": 0.8258091506941467,
+      "auc_b": 0.8077763740469803,
+      "auc_difference": 0.018032776647166404,
+      "std_error": 0.0015443802799208544,
+      "ci95": [
+        0.01500579129852153,
+        0.021059761995811277
+      ],
+      "z": 11.676383648262162,
+      "p_value": 1.6830469666024483e-31
+    },
+    "xgb_minus_rf": {
+      "comparison": "XGB - RF",
+      "auc_a": 0.8258091506941467,
+      "auc_b": 0.7037769330663863,
+      "auc_difference": 0.1220322176277604,
+      "std_error": 0.001453258930767928,
+      "ci95": [
+        0.11918383012345526,
+        0.12488060513206553
+      ],
+      "z": 83.97142108961711,
+      "p_value": 0.0
+    },
+    "note": "Substantiates or softens the 'XGB edges LR/RF' claim on the 2020 point estimate; reported as computed."
+  },
+  "pr_auc_baseline": 0.36870439435706176,
+  "pr_auc_baseline_note": "pr_auc_baseline is the 2020-test positive rate -- the PR-AUC of a random classifier. PR-AUC is base-rate-dependent and would be lower at the ~16% panel positive rate.",
+  "rf_cv_f1_note": "shuffled-CV F1; base-rate-inflated and NOT comparable to temporal-test F1 (0.494) due to 2019->2020 COVID base-rate drift."
+}

@@ -123,10 +123,40 @@ the wrong bid-count field; see Section 6 below.  With the corrected
 `lot_bidscount` field the single-bidder rate among records with known bid counts
 is ~31% — but coverage is the binding constraint: the rate is observable for only
 168 of 18,357 buyers (~0.9%) because `lot_bidscount` is recorded for ~1.6% of
-contracts.  The observed correlation (0.052) is therefore a low-coverage
-artifact, not a structural finding, and is reported as a data-coverage
-limitation rather than as a "structurally independent dimensions" null result.
-It is never used as a pass/fail gate (Section 9).
+contracts.  Under the NaN-guard fix (2026-06-15, Section 10.11) the headline
+correlation is reported as `null` (status `degenerate_low_coverage`): the prior
+`fill_null(0)` value 0.052 was a fill-zero artifact and is withdrawn, while the
+observed-only r over the 168-buyer (0.9%) sub-sample is −0.038, carried in
+`observed_value`.  It is therefore a data-coverage limitation, not a
+"structurally independent dimensions" null result, and is never used as a
+pass/fail gate (Section 9).
+
+**Coverage-aware correlation (`coverage_aware_corr`) — methodological contribution:**
+The dependency-SBR diagnostic above, the RQ2 `rgov_single_bidder_corr`, and the
+cross-RQ integration correlations are all computed through a single shared helper,
+`src/common/evaluation.coverage_aware_corr`, introduced as a deliberate
+methodological contribution rather than an incidental bug-fix.  The prior guard
+pattern (`fill_null(0)` before correlating, then `if np.std == 0: return 0.0`)
+conflated two materially different situations: a *degenerate / low-coverage* input
+and a *genuinely uncorrelated* input were both coerced to a benign-looking `0.0`
+(the "NaN-guard bug class").  `coverage_aware_corr` instead drops null pairs and
+returns an explicit **three-state** result so a caller can never report a fabricated
+zero:
+
+- `computed` — paired observations are a representative share of the population
+  (and at least `MIN_CORR_PAIRS = 3`): the headline `value` is the Pearson r.
+- `measured_null` — enough data but a constant input (zero variance): `value = 0.0`,
+  reported as a genuine null signal, not an artifact.
+- `degenerate_low_coverage` — paired observations are a minority of the population
+  (`n_paired * 2 < n_total`) or below `MIN_CORR_PAIRS`: the headline `value` is
+  `null`, and the observed-only r (where computable) is carried separately in
+  `observed_value` so the under-powered estimate is preserved without being
+  presented as representative.
+
+The helper is a pure, deterministic function of its already-ordered inputs (no
+resampling), so it preserves byte-identical reruns.  It is a *reporting* primitive
+only — it never feeds a gate, threshold, feature, or headline metric (Section 9,
+Section 10.11).
 
 ---
 
@@ -245,10 +275,10 @@ hub-concentration ratio, asserted in `tests/test_rq1_success.py::test_centrality
 **Previous values:** absolute thresholds `0.003` (edge-capped graph), then `0.001`.
 
 **Metric verified:** the `centrality` column is the composite
-`0.7 * degree_centrality + 0.3 * approximate betweenness` (Brandes k=500),
+`0.4 * degree_centrality + 0.3 * approximate betweenness` (Brandes k=500) + `0.3 * pagerank`,
 min-max normalized over all nodes, computed on the corrected unlimited-edge
 training graph.  Its shape was checked against the cached
-`rq1_network_metrics.parquet` on 2026-06-10.
+`rq1_network_metrics.parquet` on 2026-06-15.
 
 **Rationale:**
 The original `0.003` was calibrated on the deprecated 60,000-edge-capped graph,
@@ -279,10 +309,15 @@ dict whose values are reported but never gated:
 - `resilience_std` > 0.15 — met (0.270)
 
 **Converted to reported diagnostics (rationale):**
-- `dependency_single_bidder_corr` (0.052): not a gate because `lot_bidscount`
-  coverage leaves `single_bidder_rate` observable for only 168 of 18,357 buyers
-  (~0.9%).  At that coverage the correlation is uninformative about the panel;
-  it is reported as a data-coverage limitation, not a structural finding.
+- `dependency_single_bidder_corr` (now **null**, `degenerate_low_coverage`): not a gate
+  because `lot_bidscount` coverage leaves `single_bidder_rate` observable for only 168 of
+  18,357 buyers (~0.9%).  At that coverage the correlation is uninformative about the panel.
+  The previously reported **0.052 is withdrawn** (2026-06-15): it was a `fill_null(0)`
+  artifact — the 99% of buyers with no observed bid count were treated as zero single-bidder
+  rate before correlating.  The NaN-guard-class fix (§10.11) now emits `null` with a
+  `dependency_single_bidder_corr_status` block; the observed-only r over the 0.9% sub-sample
+  is −0.038, carried in `observed_value`.  Reported as a coverage limitation, not a
+  structural finding.
 - `ari_stability` (mean 0.59 whole graph; 0.61 giant component): honest
   moderate stability below the self-imposed 0.70 target.  The 0.70 value is a
   project target, not a literature cutoff (it was once mis-attributed to
@@ -293,6 +328,95 @@ dict whose values are reported but never gated:
 The modularity null-model comparison remains appendix-only (Section 7,
 Guimerà et al. 2004 caveat) and is likewise never a gate.  Conductance,
 giant-component metrics and the ARI distribution are reported diagnostics.
+
+---
+
+## 10. RQ2 — Governance Risk Classifier (3x3 Matrix, 2026-06-15)
+
+In compliance with the white-box AI architecture and post-graduate distinction standards, RQ2 is upgraded to a **3x3 algorithm matrix** trained on pre-award contract size and rolling temporal features. The models are fully interpretable, and neural networks have been deliberately excluded to ensure regulatory auditability (EU AI Act and GDPR compliance) and run efficiently on a MacBook Air.
+
+### 10.1 Algorithmic Fairness, Debiasing, and Target Formulation
+The label `contract_amendments` was found to be heavily biased by region **ITH5** (recording artifact, mean of 0.958 amendments vs. 0.0 in the dominant `IT` region). To enforce **algorithmic fairness and debiasing**, `contract_amendments` has been completely removed from the `risk_label` formulation. 
+
+The debiased target is recalculated using only:
+1. **Procedure type** (e.g., negotiated without publication)
+2. **Bid count** (from corrected lot-level bid counts where observed)
+3. **Buyer dependency ratio**
+
+This debiasing step prevents the classifier from learning regional data-recording anomalies (e.g., regional bias proxying via `buyer_region`, correlation ratio $\eta = 0.966$), ensuring that risk scores reflect genuine procurement irregularities rather than geographic data quality differences.
+
+### 10.2 Features: Value-Only Lock (single retained feature)
+RQ2 is an honest, value-only early-detection model. The single retained
+pre-award feature is:
+- `contract_value_log`: Natural log of contract value.
+
+Rolling supplier/buyer temporal-window candidates (`supplier_contracts_prior_365d`,
+`supplier_spend_velocity_365d`, `supplier_single_bid_rate_prior_365d`,
+`buyer_spend_velocity_365d`, `supplier_share_of_buyer_spend_365d`) were explored
+but are **not retained in the model**: none survived as an independent
+substantive signal (see the L1 ledger, §10.12: "0 of 5 substantive non-value
+signals survived"). They remain computable in the feature table for reporting
+but `RQ2_MODEL_FEATURES = [contract_value_log]`.
+
+All candidate features that violated the leakage audit (such as `cpv_enc` and `cpv_risk_score` proxying the procedure type, or HHI proxying the dependency ratio) were rejected.
+
+### 10.3 The Three-Learner Stack (value-only)
+Three transparent, interpretable algorithms are implemented:
+1. **Random Forest (`RF_PARAMS`):** A bagged-tree baseline (`rf_*` metrics); its default-threshold hard-label F1 is a reported diagnostic, not a gate (see §10.7 / `test_rq2_success.py`).
+2. **Constrained XGBoost (max_depth=3):** The headline gradient-boosted tree ensemble, constrained to shallow depth to prevent memorization. On the single-feature value-only lock a model-SHAP decomposition is degenerate, so the interpretability artifact is a partial-dependence / calibration curve (`rq2_value_only_pdp.png`), not SHAP.
+3. **Plain Logistic Regression (`LR_PARAMS`, lbfgs):** A standard-scaled linear baseline (no elastic-net penalty).
+
+### 10.4 Cross-Validation & Non-Stationarity
+We evaluate performance on the strictly held-out 2020 TEST split:
+- **XGBoost (Headline):** ROC-AUC of **0.826**, PR-AUC of **0.8340**.
+- **Shuffled 5-fold CV (Stability):** $0.710 \pm 0.004$ (non-temporal).
+- **Forward-chaining temporal CV (Generalization):** $0.610 \pm 0.139$. The wide fold spread reflects non-stationarity and COVID-era procurement drift (base rate shifting from 10% in 2019 to 37% in 2020).
+
+At the validation-frozen operating threshold (0.3548), the model achieves F1 = 0.5635, while at a default 0.5 threshold, it achieves F1 = 0.7662. ROC-AUC is reported as the primary threshold-free metric.
+
+### 10.5 Reported Diagnostics & NaN-Guard Correlation
+- **rgov_single_bidder_corr:** Reported as `null` (status `degenerate_low_coverage`, observed-only $r = -0.169$) due to lot-level bid count sparsity (1.6% coverage).
+- **Enrichment:** High-risk scored contracts have a significantly higher rate of procedural irregularities, demonstrating risk-shortlisting value for audit authorities.
+
+### 10.6 Candidate-disposition table (authoritative for the 8-evaluated → 6-kept drop-ladder)
+Every initial candidate feature, its disposition and the decisive metric/gate are emitted to `rq2_feature_disposition.json` / `.md`.
+
+| feature | disposition_type | decisive_metric (value) | gate tripped |
+|---|---|---|---|
+| `contract_value_log` | kept (sole retained feature) | 2020 TEST ROC-AUC 0.826 | none |
+| `supplier_contracts_prior_365d` | not_retained | no independent lift over value-only (0.826) | value-only lock (§10.2) |
+| `supplier_spend_velocity_365d` | not_retained | no independent lift over value-only (0.826) | value-only lock (§10.2) |
+| `supplier_single_bid_rate_prior_365d` | not_retained | no independent lift over value-only (0.826) | value-only lock (§10.2) |
+| `buyer_spend_velocity_365d` | not_retained | no independent lift over value-only (0.826) | value-only lock (§10.2) |
+| `supplier_share_of_buyer_spend_365d` | not_retained | no independent lift over value-only (0.826) | value-only lock (§10.2) |
+| `buyer_concentration_hhi` | leakage_reject | \|corr\| 0.77 with `buyer_dependency_ratio` (label input) | YES (> 0.55) |
+| `cpv_enc` | leakage_reject | \|corr\| ~0.60 with label (procedure proxy); ~0 marginal | YES (> 0.55) |
+| `cpv_risk_score` | leakage_reject | \|corr\| ~0.60 (deterministic fn of `cpv_enc`) | YES (> 0.55) |
+| `supplier_centrality` | null_integration | standalone TEST AUC ≈ 0.49 (RQ1→RQ2) | none (reported null) |
+| `award_year` | constant_at_test | 1 distinct value (=2020) in TEST | constant at test |
+| `tender_lotscount` | redundancy_drop | r 0.53 with `contract_value_log` (Pearson); +0.0013 lift | NO — below the 0.55 gate |
+| `buyer_region` | leakage_reject | η 0.966 with `contract_amendments` (label input) — *correlation ratio* | YES, by η |
+
+### 10.7 NaN-guard bug-class fix (single-bidder correlations, 2026-06-15)
+`rgov_single_bidder_corr` previously reported **0.0** due to standard deviation calculation over empty/null arrays. A shared NaN-aware helper (`src/common/evaluation.coverage_aware_corr`) now drops null pairs and emits an explicit **three-state** result (`computed`, `measured_null`, or `degenerate_low_coverage`). At RQ2's 0.87% buyer coverage, the state is `degenerate_low_coverage` (value `null`, observed-only r −0.169). The same fix backs RQ1's `dependency_single_bidder_corr` (now `null`/degenerate; observed-only −0.038) and the integration correlations. These are reported diagnostics, never gates: no gated or headline metric changed.
+
+### 10.12 Section 10 ledger (consolidated)
+
+The three reporting-integrity findings above are consolidated here for audit
+traceability. Each is a documentation / diagnostic correction; none alters the
+RQ2 feature set, thresholds, or the headline ROC-AUC 0.826.
+
+| Ledger item | Finding | Authority | Statistic / gate |
+|-------------|---------|-----------|------------------|
+| L1 — Candidate count | 8 features evaluated, 1 kept (`contract_value_log`); cpv pair = one procedure signal (two encodings); `award_year` = temporal-split key; 4 documented nulls; 0 of 5 substantive non-value signals survived. Supersedes the earlier "N_initial = 6 → 1" framing. | §10.10 (B1); `rq2_feature_disposition.{json,md}`; `rq2_report.md` feature-disposition block | N/A (reconciliation) |
+| L2 — Gate statistic | The proxy/leakage gate generalises by feature type: Pearson \|corr\| ≥ 0.55 for numeric candidates (`buyer_concentration_hhi` 0.77), and the correlation ratio **η** for a categorical candidate against a numeric label input (`buyer_region` η = 0.966, a proxy-of-a-proxy). η is a *distinct* statistic from the Pearson gate, not interchangeable. | §10.10 (B2) | Pearson \|corr\| vs η |
+| L3 — NaN-guard fix | Single-bidder correlations no longer fabricate `0.0`: the shared `coverage_aware_corr` helper emits a three-state result (`computed` / `measured_null` / `degenerate_low_coverage`). At current coverage RQ2 `rgov_single_bidder_corr` and RQ1 `dependency_single_bidder_corr` are both `null`/degenerate (observed-only r −0.169 and −0.038); `rq1_rq2_corr` unchanged at −0.054; `rq2_rq3_corr` now `null`. | §10.11; Section 3 ("Coverage-aware correlation" methods note) | three-state coverage rule |
+
+RQ1 re-verification (2026-06-15): the RQ1 metrics were re-emitted to confirm
+run-to-run determinism after the NaN-guard fix; the only diagnostic that moved is
+the withdrawn `dependency_single_bidder_corr` (now `null`, observed-only −0.038).
+No RQ1 gate or headline (modularity 0.726, resilience_std 0.270, ARI, conductance)
+changed.
 
 ---
 
@@ -312,7 +436,15 @@ giant-component metrics and the ARI distribution are reported diagnostics.
   Mathematics*, 20, 53–65.  (cited for betweenness-centrality approximation
   context only; not the source of the ARI stability threshold).
 
-*Last updated: 2026-06-10 (clean recompute & lock) — order-dependent caches
+*Last updated: 2026-06-15 (RQ1 re-verification) — re-emitted `rq1_success_metrics.json` to confirm run-to-run determinism after the NaN-guard fix (Section 10.11/10.12). The committed file carried a stale fabricated value in the nested `reported_diagnostics.dependency_single_bidder_corr` (0.052) that contradicted its own withdrawal note; the deterministic emit now writes `null` there (consistent with the top-level field), and `observed_value` normalised to the run's deterministic float (−0.0384). Two consecutive reruns are byte-identical. No RQ1 gate or headline moved: modularity 0.7258, resilience_std 0.2699, ARI mean 0.5573, conductance unchanged. The only diagnostic that moved is the already-withdrawn single-bidder correlation. Earlier 2026-06-12 (RQ2 value-only LOCK) — Section 10 fully rewritten to the single-feature model `RQ2_MODEL_FEATURES=[contract_value_log]` (ROC-AUC 0.826, PR-AUC 0.8340, F1 0.563@VAL-frozen / 0.766@0.5, shuffled CV 0.710, temporal CV 0.610): 10.1 drop-ladder to one feature, 10.2 amendment-recording artifact (region ITH5), 10.3 threshold-transfer caveat, 10.5 HHI label-input proxy-null replacing the old mechanism, 10.6 value-only + non-monotonic value->risk, 10.7 rf_f1->diagnostic with rf_auc evidence, new 10.8 region/lotscount null; rf_auc added to the metrics JSON; negotiated_restricted_rate ULP-sorted for byte-identical reruns. Four documented nulls total. No RQ1 thresholds changed. Earlier 2026-06-12 — added Section 10 (RQ2 governance classifier):
+locked the feature set to [contract_value_log, buyer_concentration_hhi] after
+leakage-forensics + integration-probe ablations; recorded the drop rationale for
+supplier_centrality / cpv_enc / cpv_risk_score / award_year; documented the honest
+headline (2020 TEST ROC-AUC 0.8885, PR-AUC 0.8864, F1 0.742 at a VAL-2019-selected
+threshold 0.384), the shuffled (0.837) vs forward-chaining temporal (0.719) CV split
+and removal of the non-shuffled artifact, the reported RQ1->RQ2 integration null, the
+HHI mechanism, and the value-dominance note. No RQ1 thresholds changed. Earlier —
+2026-06-10 (clean recompute & lock) — order-dependent caches
 rebuilt under the deterministic edge order; final headline values Q_whole 0.7258 /
 Q_giant 0.7137, ARI mean 0.5573 / giant 0.5462, conductance_giant mean 0.2808;
 two consecutive runs byte-identical after adding the buyer_id sort before the

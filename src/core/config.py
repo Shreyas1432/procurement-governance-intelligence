@@ -125,8 +125,8 @@ RQ3_ANOMALY_RATE_MAX = 0.08
 RQ3_CONSENSUS_ENRICHMENT_THRESHOLD = 0.4
 
 # Model parameters
-RF_PARAMS = dict(n_estimators=300, max_depth=20, min_samples_leaf=5, random_state=42, class_weight="balanced_subsample", n_jobs=-1)
-XGB_PARAMS = dict(n_estimators=200, max_depth=4, learning_rate=0.05, subsample=0.8, colsample_bytree=0.8, random_state=42)
+RF_PARAMS = dict(n_estimators=300, max_depth=20, min_samples_leaf=5, random_state=42, class_weight="balanced_subsample", n_jobs=1)
+XGB_PARAMS = dict(n_estimators=200, max_depth=3, learning_rate=0.05, subsample=0.8, colsample_bytree=0.8, random_state=42)
 LR_PARAMS = dict(C=1.0, solver="lbfgs", max_iter=1000, class_weight="balanced")
 GB_REG_PARAMS = dict(n_estimators=200, max_depth=5, learning_rate=0.1, subsample=0.8, random_state=42)
 LOF_PARAMS = dict(n_neighbors=20, contamination=0.05)
@@ -137,13 +137,32 @@ ISO_PARAMS = dict(n_estimators=100, contamination=0.05, random_state=42)
 #   - LABEL_DEFINING_COLS (outputs / derivatives of the label)
 #   - LABEL_RULE_INPUTS  (inputs to the deterministic label rule)
 # (leakage remediation 2026-06-04)
+#
+# FEATURE SET LOCKED 2026-06-12 to a SINGLE feature (contract_value_log) after the
+# leakage-forensics, integration-probe, and HHI redefine+refit passes
+# (see docs/THRESHOLD_JUSTIFICATION.md Section 10).
+# Rationale for the five drops (evidence in the threshold doc, not inlined here):
+#   - supplier_centrality : genuine null (alone TEST AUC ~0.49, marginal ~0.0);
+#                           reported as a documented negative result, not a feature.
+#   - cpv_enc             : arbitrary high-cardinality ordinal encoding of a nominal
+#                           category (memorisation pathology); ~0 marginal AUC; proxy WARN.
+#   - cpv_risk_score      : redundant procedure_type proxy (|corr|~0.60 with label);
+#                           ~0 marginal AUC; proxy WARN.
+#   - award_year          : constant (=2020) in the TEST split — contributes nothing
+#                           at test time; retained only as the temporal-split key.
+#   - buyer_concentration_hhi : after redefinition to a valid as-of-award supplier-share
+#                           HHI (bounded (0,1]; the SQL fix STAYS), the refit revealed it
+#                           is a 0.77 proxy for buyer_dependency_ratio — a LABEL-RULE INPUT
+#                           (the label fires at dependency > 0.5 / 0.7). Its +0.068 lift is
+#                           the model reconstructing the label's own concentration trigger,
+#                           not independent signal; it WARNed T7-08 and broke the rf_f1 gate
+#                           (0.612). Excluded for consistency with cpv_enc (dropped at 0.60).
+#                           The column is KEPT in the feature table as reported proxy-null
+#                           evidence (data/results/rq2_hhi_proxy_null.*), just not modelled.
+# RQ2 is therefore an honest, value-only early-detection model plus three documented nulls
+# (RQ1->RQ2 integration, supplier_centrality, and the HHI label-input proxy).
 FEATURES = [
-    "buyer_concentration_hhi",
-    "supplier_centrality",
     "contract_value_log",
-    "cpv_enc",
-    "cpv_risk_score",
-    "award_year",
 ]
 
 # All columns excluded from the model — both label outputs and label-rule inputs.
