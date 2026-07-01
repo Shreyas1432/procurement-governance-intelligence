@@ -1,4 +1,4 @@
-.PHONY: features rq1 rq2 rq3 pipeline audit test dashboard strip clean
+.PHONY: features rq1 rq2 rq3 pipeline audit test dashboard figures strip clean
 
 PY = .venv/bin/python
 
@@ -25,6 +25,9 @@ test:
 
 dashboard:
 	.venv/bin/streamlit run src/dashboard/app.py
+
+figures:
+	$(PY) src/figures/build_figures.py
 
 strip:
 	$(PY) scripts/strip_comments.py

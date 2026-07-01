@@ -33,31 +33,49 @@ Thumbs.db
 # Kaleido temp files
 orca_config.json
 
-# Data — never commit
-data/raw/
-data/curated/
-data/features/
-data/models/
-data/results/
-Dataset/*.parquet
-Dataset/*.csv
-Dataset/simulated*
-Dataset/procurement_risk*
-Dataset/rq1_filtered*
+# Dataset — never commit the 12M-row parquet or raw files
+Dataset/
 
-# Generated clean version
-dist/
+# personal / agent / memory
+.claude/
+.codex/
+CLAUDE.md
+claude_memory.md
+project_memory.md
+scratch/
+archive/
+graphify-out/
 
-# Environment
-.venv/
-*.env
+# internal reports & diff-specs (hand-applied, not for repo)
+REMEDIATION_REPORT.md
+update_docs.py
+docs/memory/
+docs/supervisor_updates/
+docs/EXAMINER_DEMOLITION_REPORT.md
+docs/PASS5_ROLLBACK_AND_DIFFSPECS.md
+docs/REFACTOR_PLAN.md
+docs/refactor_summary.md
+docs/repository_audit.md
+docs/*_diffs.md
 
-# Python
-__pycache__/
-*.pyc
-.ipynb_checkpoints/
+# thesis lives in Overleaf, per your rule
+docs/Thesis_Report.tex
+docs/references.bib
 
-# OS / IDE
-.DS_Store
-.vscode/
-.idea/
+# raw dataset — never commit large parquets
+*.parquet
+
+# WIP scaffolding not yet locked
+src/dashboard/
+
+# Generated plot outputs (rebuilt by make figures)
+results/
+outputs/
+reports/
+refactor/
+
+# Temp dirs
+duckdb_temp/
+tmp_pip/
+.pytest_cache/
+.ruff_cache/

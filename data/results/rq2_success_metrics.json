@@ -1,4 +1,5 @@
 {
+  "pr_auc_note": "Canonical PR-AUC = average_precision_score (sklearn) = 0.8336 (4dp), stored at test_headline.pr_auc. Trapezoidal AUC(recall,precision) differs; do not use as the headline figure.",
   "rf_f1": 0.4939285044097888,
   "rf_cv_f1": 0.8801550909211558,
   "rf_auc": 0.7037769330663864,
