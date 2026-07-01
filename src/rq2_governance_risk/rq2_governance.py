@@ -881,8 +881,8 @@ def _auc(y_true, proba):
 
 # --- DeLong AUC-difference test (closed form, deterministic, no resampling) ----
 # Implements the fast DeLong covariance estimator (Sun & Xu 2014; DeLong et al.
-# 1988) so two ROC-AUCs measured on the SAME 2020 test set can be compared with a
-# proper paired variance. Closed-form only -- no bootstrap -- so reruns are
+# (1988) so two ROC-AUCs measured on the SAME 2020 test set can be compared with a
+# proper paired variance. Closed-form only no bootstrap  so reruns are
 # byte-identical. Diagnostic for T6; it does not alter any model or threshold.
 def _delong_midrank(x):
     order = np.argsort(x)

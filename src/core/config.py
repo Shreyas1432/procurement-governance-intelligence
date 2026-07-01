@@ -126,7 +126,7 @@ RQ3_CONSENSUS_ENRICHMENT_THRESHOLD = 0.4
 
 # Model parameters
 RF_PARAMS = dict(n_estimators=300, max_depth=20, min_samples_leaf=5, random_state=42, class_weight="balanced_subsample", n_jobs=1)
-XGB_PARAMS = dict(n_estimators=200, max_depth=3, learning_rate=0.05, subsample=0.8, colsample_bytree=0.8, random_state=42)
+XGB_PARAMS = dict(n_estimators=200, max_depth=3, learning_rate=0.05, subsample=0.8, colsample_bytree=0.8, random_state=42,n_jobs=1)
 LR_PARAMS = dict(C=1.0, solver="lbfgs", max_iter=1000, class_weight="balanced")
 GB_REG_PARAMS = dict(n_estimators=200, max_depth=5, learning_rate=0.1, subsample=0.8, random_state=42)
 LOF_PARAMS = dict(n_neighbors=20, contamination=0.05)
