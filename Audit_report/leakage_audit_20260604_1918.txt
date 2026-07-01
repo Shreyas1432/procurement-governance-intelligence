@@ -3,7 +3,7 @@
   Generated: 2026-06-04 19:18
 ======================================================================
 
-  PASSED: 13  FAILED: 0  WARNED: 1
+  [PASS] PASSED: 13  [FAIL] FAILED: 0  [WARN]  WARNED: 1
 
 
 [PASS] [T1-001] No label-defining cols in feature matrix
@@ -64,5 +64,5 @@
    Detail   : No features with suspiciously high correlation to risk_label detected.
 
 ======================================================================
-  VERDICT: PASS — No leakage detected — safe to train models
+  VERDICT: [PASS] No leakage detected — safe to train models
 ======================================================================

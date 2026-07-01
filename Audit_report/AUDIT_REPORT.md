@@ -65,7 +65,7 @@ The codebase demonstrates solid architectural decisions:
 - **Location:** Line 6
 - **Problem:** `from src.config import (...)` — the module `src.config` does not exist. The actual config module is `src.core.config`. This file is an exact duplicate of `src/core/data_loader.py` except for the broken import.
 - **Impact:** Any code importing from `src.data_loader` crashes with `ModuleNotFoundError`. Nothing in the active codebase imports this file, confirming it is dead code.
-- **Fix:** Archived on 2026-06-02. No further action needed.
+- **Fix:** [PASS] Archived on 2026-06-02. No further action needed.
 
 ---
 
@@ -448,15 +448,15 @@ The codebase demonstrates solid architectural decisions:
 
 | Test File | Tests | What It Covers | Quality |
 |-----------|-------|----------------|---------|
-| `test_data_quality.py` | 3 | Row count, temporal range, no negative prices | Good — guards data integrity |
+| `test_data_quality.py` | 3 | Row count, temporal range, no negative prices | [PASS] Good — guards data integrity |
 | `test_feature_engineering.py` | 1 | Existence of 4 feature parquet files | [WARN] Weak — only checks file existence, not content |
-| `test_eda_outputs.py` | 2 | Existence of 20 HTML/PNG/JSON/MD chart artifacts + 6 section reports | Good — but will fail if EDA hasn't been run |
-| `test_leakage.py` | 2 | No future supplier features, train/test temporal gap | Critical test — depends on `feature_df` fixture loading supplier_behavior_features.parquet |
-| `test_no_target_leakage.py` | 3 | RQ2 features exclude label inputs, classifier features are clean | Excellent — guards thesis correctness |
-| `test_rq1_success.py` | 5 | Graph build, centrality distribution, modularity, dependency rate, resilience std | Good success criteria tests |
-| `test_rq2_success.py` | 6 | RF F1, XGB AUC, LR AUC, ensemble existence, R_gov correlation, SHAP top features | Good — tests thesis acceptance criteria |
-| `test_rq3_success.py` | 4 | GB R², RMSE reduction, anomaly rate bounds, LOF-GB overlap | Good |
-| `test_integration.py` | 3 | Unified scores exist + bounds, join doesn't inflate rows | Excellent — guards against the real-world row explosion bug |
+| `test_eda_outputs.py` | 2 | Existence of 20 HTML/PNG/JSON/MD chart artifacts + 6 section reports | [PASS] Good — but will fail if EDA hasn't been run |
+| `test_leakage.py` | 2 | No future supplier features, train/test temporal gap | [PASS] Critical test — depends on `feature_df` fixture loading supplier_behavior_features.parquet |
+| `test_no_target_leakage.py` | 3 | RQ2 features exclude label inputs, classifier features are clean | [PASS] Excellent — guards thesis correctness |
+| `test_rq1_success.py` | 5 | Graph build, centrality distribution, modularity, dependency rate, resilience std | [PASS] Good success criteria tests |
+| `test_rq2_success.py` | 6 | RF F1, XGB AUC, LR AUC, ensemble existence, R_gov correlation, SHAP top features | [PASS] Good — tests thesis acceptance criteria |
+| `test_rq3_success.py` | 4 | GB R², RMSE reduction, anomaly rate bounds, LOF-GB overlap | [PASS] Good |
+| `test_integration.py` | 3 | Unified scores exist + bounds, join doesn't inflate rows | [PASS] Excellent — guards against the real-world row explosion bug |
 
 ### Missing Test Coverage
 
@@ -543,12 +543,12 @@ The codebase demonstrates solid architectural decisions:
 
 ### What passes
 
-- Core algorithm implementations are sound (RQ1 network, RQ2 governance, RQ3 pricing)
-- Target leakage prevention is properly implemented and tested
-- Integration join-explosion guard works correctly
-- Optional dependency fallbacks are well-implemented
-- Test suite covers key acceptance criteria
-- SQL-first architecture is clean and reproducible
+- [PASS] Core algorithm implementations are sound (RQ1 network, RQ2 governance, RQ3 pricing)
+- [PASS] Target leakage prevention is properly implemented and tested
+- [PASS] Integration join-explosion guard works correctly
+- [PASS] Optional dependency fallbacks are well-implemented
+- [PASS] Test suite covers key acceptance criteria
+- [PASS] SQL-first architecture is clean and reproducible
 
 ---
 
@@ -670,27 +670,27 @@ pyproject.toml                 # Project metadata + pytest config
 
 | Package | requirements.txt | Actually Imported | Verdict |
 |---------|-----------------|-------------------|---------|
-| duckdb | >=0.10.0 | yes | OK |
-| polars | >=0.20.0 | yes | OK |
-| pandas | >=2.2.0 | yes | OK |
-| networkx | >=3.2 | (optional) | OK |
-| python-louvain | >=0.16 | (optional, as `community`) | OK |
-| scikit-learn | >=1.4.0 | (as `sklearn`) | OK |
-| xgboost | >=2.0.0 | (optional) | OK |
-| shap | >=0.44.0 | no | **UNUSED — remove** |
-| scipy | >=1.12.0 | yes | OK |
-| plotly | ==5.18.0 | yes | OK (pin is strict) |
-| kaleido | ==0.2.1 | (indirect via Plotly) | OK (pin is strict) |
-| streamlit | >=1.32.0 | yes | OK |
-| jupyter | >=7.0.0 | no | Dev only — move to optional |
-| jupyterlab | >=3.0.0 | no | Dev only — move to optional |
-| nbconvert | >=7.0.0 | no | Dev only — move to optional |
-| pytest | >=8.0.0 | yes | OK |
-| pyarrow | >=15.0.0 | (indirect via Polars) | OK |
-| pillow | >=10.0.0 | (as `PIL`) | OK |
-| **numpy** | **MISSING** | yes | **ADD** |
-| **python-pptx** | **MISSING** | (as `pptx`) | **ADD** |
-| **matplotlib** | **MISSING** | yes | **ADD** |
+| duckdb | [PASS] >=0.10.0 | [PASS] | OK |
+| polars | [PASS] >=0.20.0 | [PASS] | OK |
+| pandas | [PASS] >=2.2.0 | [PASS] | OK |
+| networkx | [PASS] >=3.2 | [PASS] (optional) | OK |
+| python-louvain | [PASS] >=0.16 | [PASS] (optional, as `community`) | OK |
+| scikit-learn | [PASS] >=1.4.0 | [PASS] (as `sklearn`) | OK |
+| xgboost | [PASS] >=2.0.0 | [PASS] (optional) | OK |
+| shap | [PASS] >=0.44.0 | [FAIL] | **UNUSED — remove** |
+| scipy | [PASS] >=1.12.0 | [PASS] | OK |
+| plotly | [PASS] ==5.18.0 | [PASS] | OK (pin is strict) |
+| kaleido | [PASS] ==0.2.1 | [PASS] (indirect via Plotly) | OK (pin is strict) |
+| streamlit | [PASS] >=1.32.0 | [PASS] | OK |
+| jupyter | [PASS] >=7.0.0 | [FAIL] | Dev only — move to optional |
+| jupyterlab | [PASS] >=3.0.0 | [FAIL] | Dev only — move to optional |
+| nbconvert | [PASS] >=7.0.0 | [FAIL] | Dev only — move to optional |
+| pytest | [PASS] >=8.0.0 | [PASS] | OK |
+| pyarrow | [PASS] >=15.0.0 | [PASS] (indirect via Polars) | OK |
+| pillow | [PASS] >=10.0.0 | [PASS] (as `PIL`) | OK |
+| **numpy** | [FAIL] **MISSING** | [PASS] | **ADD** |
+| **python-pptx** | [FAIL] **MISSING** | [PASS] (as `pptx`) | **ADD** |
+| **matplotlib** | [FAIL] **MISSING** | [PASS] | **ADD** |
 
 ---
 

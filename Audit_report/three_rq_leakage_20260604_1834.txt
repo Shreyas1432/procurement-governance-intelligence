@@ -3,7 +3,7 @@
   Generated: 2026-06-04 18:34
 ========================================================================
 
-  PASS: 16  FAIL: 2  WARN: 4  SKIP: 0
+  [PASS] PASS: 16  [FAIL] FAIL: 2  [WARN]  WARN: 4  ⏭️  SKIP: 0
 
 ────────────────────────────────────────────────────────────────────────
   RQ1 — Supplier Network Intelligence
@@ -113,7 +113,7 @@
    Detail   : Could not verify integration feature sources.
 
 ========================================================================
-  VERDICT: FAIL — 2 leakage issue(s) confirmed
+  VERDICT: [FAIL] 2 leakage issue(s) confirmed
   DO NOT submit dissertation results until all FAILs are resolved
 
   [WARN]  CRITICAL ISSUES REQUIRING DECISION:

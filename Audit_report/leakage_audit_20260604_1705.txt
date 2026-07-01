@@ -3,7 +3,7 @@
   Generated: 2026-06-04 17:05
 ======================================================================
 
-  PASSED: 10  FAILED: 3  WARNED: 1
+  [PASS] PASSED: 10  [FAIL] FAILED: 3  [WARN]  WARNED: 1
 
 
 [FAIL] [T1-001] No label-defining cols in feature matrix
@@ -69,5 +69,5 @@
    Fix      : Remove or rederive features with |r|>0.95 against risk_label.
 
 ======================================================================
-  VERDICT: FAIL — 3 leakage issue(s) found — DO NOT submit results until fixed
+  VERDICT: [FAIL] 3 leakage issue(s) found — DO NOT submit results until fixed
 ======================================================================
