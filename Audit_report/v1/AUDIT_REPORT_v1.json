@@ -1,0 +1,224 @@
+{
+  "audit_metadata": {
+    "version": "v1",
+    "target": "Project_Main (procurement-governance-intelligence)",
+    "audit_date": "2026-06-02",
+    "scope": ["src/", "phase0_schema.py", "phase1_eda.py", "phase2_ppt.py", "run_full_pipeline.py", "tests/", "requirements.txt", "pyproject.toml", "Makefile", ".env.example"],
+    "excluded": ["archive/", "graphify-out/", "data/ (gitignored, external symlink)", "notebooks/"],
+    "production_loc_py": 4117,
+    "totals": {"CRITICAL": 0, "MAJOR": 6, "MINOR": 14, "INFO": 1, "total": 21},
+    "note": "Baseline version. Re-run the audit after edits and save as v2 for diff."
+  },
+  "findings": [
+    {
+      "id": "PM-V1-001",
+      "category": "TEST_INTEGRITY",
+      "severity": "MAJOR",
+      "file_path": "tests/test_rq1_success.py, tests/test_rq2_success.py, tests/test_rq3_success.py",
+      "issue": "Success criteria tests assert on committed JSON artifacts, not recomputed behavior",
+      "description": "test_rf_f1/test_xgb_auc/test_lr_auc/test_modularity/test_gb_r2_threshold open DATA_RESULTS/rq*_success_metrics.json and assert on values already written there (e.g. test_rq2_success.py:5-8 json.load then assert metrics['rf_f1'] >= 0.70). They never invoke run_rq2/run_rq1/run_rq3, so they validate the contents of a file the author generates, not actual model performance.",
+      "impact": "Headline success claims are self-certified by editable output files. A stale or hand-edited JSON makes every threshold test pass green without any model achieving the metric.",
+      "remediation": "Convert to behavioral tests: run the model on a fixed fixture inside the test (or a session-scoped fixture calling run_rqX once) and assert on freshly returned metrics. At minimum assert the metrics JSON is newer than source/data."
+    },
+    {
+      "id": "PM-V1-002",
+      "category": "TEST_INTEGRITY",
+      "severity": "MAJOR",
+      "file_path": "tests/test_rq2_success.py",
+      "issue": "test_ensemble_beats_solo is vacuous and misnamed (dead assertion)",
+      "description": "Lines 24-34 compute best_solo = max(xgb_auc, rf_f1, lr_auc) but never use it. The only assertions are that the predictions parquet exists, has rows, and contains 'ensemble_risk_prob'. The claimed comparison (ensemble > solo) is never tested.",
+      "impact": "A core comparative claim is asserted by name but unverified; the test list misleads reviewers into thinking it is covered.",
+      "remediation": "Compute ensemble AUC on a held-out set and assert it exceeds best_solo, or rename the test and remove the dead best_solo variable."
+    },
+    {
+      "id": "PM-V1-003",
+      "category": "TEST_INTEGRITY",
+      "severity": "MAJOR",
+      "file_path": "tests/test_leakage.py, tests/test_no_target_leakage.py",
+      "issue": "Leakage guards pass vacuously when data is absent",
+      "description": "test_leakage.py:5-6 'if feature_df.is_empty(): return' and :11 'if train_df.is_empty() or test_df.is_empty(): return'; test_no_target_leakage.py:27-29 'if not path.exists(): return'. Without the gitignored parquet data these tests early-return and report PASS.",
+      "impact": "Leakage controls are the integrity backbone of the dissertation, yet in CI or a fresh checkout they become no-ops that always pass, giving false assurance.",
+      "remediation": "Use pytest.skip() with a reason instead of silent return so missing data shows as SKIPPED not PASSED, and add data-independent unit tests with synthetic fixtures."
+    },
+    {
+      "id": "PM-V1-004",
+      "category": "EDGE_CASE",
+      "severity": "MAJOR",
+      "file_path": "src/rq1_supplier_network/rq1_network.py",
+      "issue": "Louvain fallback hardcodes modularity = 0.35, trivially passing the success threshold",
+      "description": "When NetworkX/python-louvain fail to import (caught silently at lines 16-24), algo2_louvain() returns a hardcoded modularity of 0.35 (lines 119, 128, 130) and assigns 'communities' by buyer_region instead of running community detection. run_rq1 writes metrics['modularity']=0.35, exceeding RQ1_MODULARITY_THRESHOLD (0.30) and passing test_modularity. The import is fragile on this runtime (Python 3.14.1 needs a stdlib monkeypatch).",
+      "impact": "On a runtime where NetworkX does not load, reported modularity is a constant literal, not a measured value, a fabricated thesis metric indistinguishable from a real one.",
+      "remediation": "Do not emit a fixed modularity in the fallback; compute it from the region-partition or set modularity=None and fail loudly / surface networkx_available=False. Pin a NetworkX version that imports on the target interpreter."
+    },
+    {
+      "id": "PM-V1-005",
+      "category": "DEPENDENCY",
+      "severity": "MAJOR",
+      "file_path": "requirements.txt",
+      "issue": "Production imports missing from requirements (matplotlib, python-pptx)",
+      "description": "src/eda/visualizations/generate_charts.py imports matplotlib and phase2_ppt.py imports pptx (python-pptx), but neither is in requirements.txt. pyproject.toml declares no [project.dependencies], so requirements.txt is the only manifest.",
+      "impact": "A clean pip install -r requirements.txt then chart/PPT generation raises ModuleNotFoundError; EDA visualization and presentation-export stages do not reproduce on a fresh environment.",
+      "remediation": "Add matplotlib>=3.8 and python-pptx>=0.6 to requirements.txt (and mirror runtime deps into pyproject [project.dependencies]). Re-verify in a fresh venv."
+    },
+    {
+      "id": "PM-V1-006",
+      "category": "SECURITY",
+      "severity": "MAJOR",
+      "file_path": "src/core/config.py",
+      "issue": "Runtime exec() of reconstructed CPython stdlib source, silently swallowed",
+      "description": "Lines 8-17 read dataclasses._add_slots source via inspect.getsource, string-replace a line, and exec(_source, dataclasses.__dict__) to monkeypatch the stdlib at import time for the whole process, wrapped in 'except Exception: pass'. Works around a Python 3.14.1 bug while requires-python is '>=3.11'.",
+      "impact": "Fragile and opaque: the patch is keyed to an exact stdlib source string, so a future 3.14.x silently no-ops (bare except) and the crash resurfaces with no diagnostic. Executing reconstructed code that mutates stdlib globals is a code-injection-shaped pattern and a reproducibility hazard.",
+      "remediation": "Remove the monkeypatch; pin a supported interpreter (requires-python '>=3.11,<3.14') or upgrade the dep triggering the slots bug. If unavoidable, scope it narrowly, log on failure, and gate on exact sys.version_info."
+    },
+    {
+      "id": "PM-V1-007",
+      "category": "EDGE_CASE",
+      "severity": "MINOR",
+      "file_path": "src/rq2_governance_risk/rq2_governance.py",
+      "issue": "Binary imbalance logic applied to a 3-class target",
+      "description": "y = risk_label.astype(int) with values {0,1,2} (feature_engineering.py:104-115) is multiclass, but scale_pos_weight uses n_pos=(y_train==1) and n_neg=(y_train==0) (lines 47-50), ignoring class 2, and ensemble_predict/_positive_class take only proba[:,-1].",
+      "impact": "XGBoost imbalance correction uses binary semantics on a multiclass target, mis-weighting class 2 and conflating 'class 2 probability' with 'risk'.",
+      "remediation": "Either binarize risk_label (>=1 -> at-risk) before training, or handle multiclass properly (per-class sample_weight, multi:softprob, defined risk aggregation)."
+    },
+    {
+      "id": "PM-V1-008",
+      "category": "EDGE_CASE",
+      "severity": "MINOR",
+      "file_path": "src/rq2_governance_risk/rq2_governance.py",
+      "issue": "_proba fallback indexes one-hot by raw label value",
+      "description": "Lines 174-179: fallback builds np.eye(len(classes))[pred] using predicted label values as row indices. Non-contiguous labels (e.g. {0,2}) index out of range or map to the wrong column.",
+      "impact": "Potential IndexError or silently incorrect probability matrix for any estimator without predict_proba on a sparse label set.",
+      "remediation": "Map labels through fitted class index (np.searchsorted(model.classes_, pred)) rather than positional indexing."
+    },
+    {
+      "id": "PM-V1-009",
+      "category": "EDGE_CASE",
+      "severity": "MINOR",
+      "file_path": "src/dashboard/app.py",
+      "issue": "Division by row count without empty guard",
+      "description": "Lines 84-85 compute 100*n_high/len(unified) and 100*n_anom/len(anomalies). Empty unified_risk_scores.parquet or rq3_anomaly_flags.parquet raises ZeroDivisionError on page load.",
+      "impact": "Dashboard crashes on the landing page when a results table is empty rather than degrading gracefully.",
+      "remediation": "Guard denominators (pct = 100*n_high/len(unified) if len(unified) else 0.0) and short-circuit the KPI row when frames are empty."
+    },
+    {
+      "id": "PM-V1-010",
+      "category": "EDGE_CASE",
+      "severity": "MINOR",
+      "file_path": "src/rq2_governance_risk/rq2_governance.py",
+      "issue": "Published risk scores are in-sample for training contracts",
+      "description": "Reported metrics use X[test_mask] correctly, but ensemble_predict runs over the full X including training rows (line 126) and writes them to rq2_governance_predictions.parquet as deployment risk scores.",
+      "impact": "Per-contract risk scores in the dashboard/integration are optimistically biased for the majority of contracts the models trained on; in-sample scores presented as out-of-sample.",
+      "remediation": "Use out-of-fold predictions (cross_val_predict) or emit scores only for the held-out period; document training-period scores as in-sample."
+    },
+    {
+      "id": "PM-V1-011",
+      "category": "EDGE_CASE",
+      "severity": "MINOR",
+      "file_path": "src/rq3_price_intelligence/rq3_pricing.py",
+      "issue": "Anomaly residuals computed in-sample over the training split",
+      "description": "The GB regressor is fit on a 75% train split (line 27) but residuals/anomaly flags use all_pred over the entire dataset (lines 42-45), so training rows get artificially small residuals.",
+      "impact": "gb_flag and the consensus anomaly set are biased toward flagging the 25% test rows, distorting anomaly rates and lof_gb_overlap used for RQ3 success.",
+      "remediation": "Generate residuals via cross_val_predict (out-of-fold) or compute anomalies only on the held-out portion."
+    },
+    {
+      "id": "PM-V1-012",
+      "category": "SECURITY",
+      "severity": "MINOR",
+      "file_path": "src/core/data_loader.py",
+      "issue": "SQL assembled via f-string interpolation of file paths",
+      "description": "_register_views interpolates self.parquet_path into read_parquet('{...}') (lines 43, 57) and copy_query into COPY (...) TO '{output_path}' (line 97). Same pattern in tests/test_data_quality.py:5,12,22. parquet_path comes from PGI_PARQUET_PATH env var (config.py:29).",
+      "impact": "Low (operator/env-controlled, not external user input), but a path containing a single quote breaks the string literal and injects SQL into the DuckDB connection.",
+      "remediation": "Use DuckDB parameter binding (read_parquet(?)) or validate/quote-escape the path before interpolation."
+    },
+    {
+      "id": "PM-V1-013",
+      "category": "SECURITY",
+      "severity": "MINOR",
+      "file_path": "src/dashboard/pages/01_supplier_explorer.py",
+      "issue": "Data-derived identifier rendered into HTML with unsafe_allow_html",
+      "description": "Line 89 interpolates supplier_id into st.markdown(f'...<strong>{supplier_id}</strong>...', unsafe_allow_html=True). supplier_id is selectbox-bounded but the underlying values come from external OpenTED data and render unsanitized as HTML.",
+      "impact": "Stored-XSS shape: markup in a source identifier renders in the browser. Bounded (internal tool, selectbox) but the unsanitized-data-into-HTML pattern is unsafe.",
+      "remediation": "Render dynamic values via st.write/st.subheader (auto-escaped) or html.escape() them; reserve unsafe_allow_html for static markup."
+    },
+    {
+      "id": "PM-V1-014",
+      "category": "TEST_INTEGRITY",
+      "severity": "MINOR",
+      "file_path": "tests/test_eda_outputs.py, tests/test_feature_engineering.py",
+      "issue": "Tests assert only file existence, not content",
+      "description": "test_chart_artifacts_exist/test_report_artifacts_exist only check .exists() for HTML/PNG/JSON/MD; test_feature_artifacts_exist only checks parquet files exist. No schema/row-count/value assertions.",
+      "impact": "Empty, truncated, or corrupt artifacts pass; coverage is limited to 'a file is present'.",
+      "remediation": "Add content assertions (non-zero size, expected columns/keys, plausible row counts) to a representative artifact per type."
+    },
+    {
+      "id": "PM-V1-015",
+      "category": "TEST_INTEGRITY",
+      "severity": "MINOR",
+      "file_path": "tests/test_rq2_success.py",
+      "issue": "test_shap_top_features couples to a feature ranking and references SHAP that is never computed",
+      "description": "Asserts 'single_bid_rate' is in rf_top3_features+xgb_top3_features (lines 41-47), but no SHAP is computed anywhere (metric is sklearn feature_importances_, rq2_governance.py:194-202). Hard-codes an expected top feature.",
+      "impact": "Misleadingly named; brittle to legitimate model changes; and since single_bid_rate proxies the bid_count<=1 label condition, asserting it as a top predictor risks rewarding residual leakage.",
+      "remediation": "Rename to reflect feature_importances_, drop/justify the hard-coded feature, and add a correlation/leakage check between single_bid_rate and the label-defining bid_count condition."
+    },
+    {
+      "id": "PM-V1-016",
+      "category": "TEST_INTEGRITY",
+      "severity": "MINOR",
+      "file_path": "tests/conftest.py",
+      "issue": "Test temporal split differs from the production split",
+      "description": "train_df/test_df fixtures use award_year <= 2016 and >= 2019 (conftest.py:45-48) and test_train_test_temporal_split asserts the 2016/2019 boundary, but the model's configured split is TRAIN_YEARS=2014-2018 and TEST_YEARS=2019-2020 (config.py:40-42).",
+      "impact": "The temporal-leakage test validates a boundary the model never uses, so it cannot catch leakage across the real 2018/2019 train/test boundary.",
+      "remediation": "Derive fixture boundaries from config.TRAIN_YEARS/TEST_YEARS so the test tracks the production split."
+    },
+    {
+      "id": "PM-V1-017",
+      "category": "TEST_INTEGRITY",
+      "severity": "MINOR",
+      "file_path": "tests/test_rq1_success.py",
+      "issue": "Near-trivial thresholds and sample-tuned bounds",
+      "description": "test_centrality_distribution re-normalizes inside the test and asserts top_centrality > 0.003 (passes for almost any non-degenerate distribution); test_dependency_rate asserts a hand-tuned range 0.20<=at_risk<=0.45 specific to the current sample.",
+      "impact": "The centrality test is effectively a no-op; the dependency-rate test is brittle and will fail on a valid but different sample without meaningfully validating RQ1.",
+      "remediation": "Assert against the documented threshold (RQ1_CENTRALITY_TOP10_THRESHOLD) on production-normalized values; replace the magic range with a justified data-relative bound."
+    },
+    {
+      "id": "PM-V1-018",
+      "category": "EDGE_CASE",
+      "severity": "MINOR",
+      "file_path": "src/core/config.py",
+      "issue": "Unvalidated int() of environment variables at import time",
+      "description": "Lines 30-31, 35-37: ROW_LIMIT/GRAPH_EDGE_LIMIT/STRATA_* are int(os.environ.get(...)) at module import. A non-numeric value (e.g. PGI_ROW_LIMIT='all') raises ValueError during import of config.py.",
+      "impact": "A malformed env var crashes every entry point that imports config (the whole pipeline and tests) with an import-time traceback rather than a clear configuration error.",
+      "remediation": "Validate conversions with a descriptive error, or a helper that falls back to default on parse failure with a logged warning."
+    },
+    {
+      "id": "PM-V1-019",
+      "category": "DEPENDENCY",
+      "severity": "MINOR",
+      "file_path": "requirements.txt",
+      "issue": "Declared-but-unused package: shap",
+      "description": "shap>=0.44.0 is declared but 'import shap'/'shap.' appears nowhere in src or phase scripts. test_shap_top_features (its only conceptual reference) uses sklearn feature_importances_, not SHAP.",
+      "impact": "Install/build weight and a misleading methodology signal (implies SHAP explainability that is not implemented).",
+      "remediation": "Remove shap from requirements, or implement the SHAP analysis the test name and docs imply."
+    },
+    {
+      "id": "PM-V1-020",
+      "category": "DEPENDENCY",
+      "severity": "MINOR",
+      "file_path": "requirements.txt",
+      "issue": "Heavy notebook deps declared but unused by the pipeline; runtime deps unpinned",
+      "description": "jupyter, jupyterlab, nbconvert are declared but not imported in src/ or phase scripts (a notebooks/ dir exists, so possibly dev-only). All runtime deps use floating >= bounds except plotly==5.18.0 and kaleido==0.2.1, and pyproject.toml declares no dependencies.",
+      "impact": "Reproducibility drift: a fresh install can resolve newer, behavior-changing versions of polars/sklearn/duckdb; unused heavy deps inflate the environment.",
+      "remediation": "Move notebook tooling to an optional/dev extra, pin runtime deps to tested versions (or commit a lockfile), and mirror runtime deps into pyproject [project.dependencies]."
+    },
+    {
+      "id": "PM-V1-021",
+      "category": "DEPENDENCY",
+      "severity": "INFO",
+      "file_path": "MISSING_CONTEXT",
+      "issue": "Prompt-assumed paths not present in repository",
+      "description": "The audit scope referenced a configs/ directory; none exists (config lives in src/core/config.py, .env.example, pyproject.toml, requirements.txt, Makefile). data/raw/IT_DIB_2023.{csv,parquet} are symlinks to ../../Dataset/ outside the repo, and data/ is gitignored.",
+      "impact": "No defect, recorded for completeness. The external-symlink data source means reproduction depends on a path outside version control.",
+      "remediation": "Document dataset acquisition/placement in README (a download or symlink-setup script) so data lineage is explicit and reproducible."
+    }
+  ]
+}
