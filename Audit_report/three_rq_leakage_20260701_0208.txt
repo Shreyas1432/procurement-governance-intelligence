@@ -1,0 +1,112 @@
+
+  PROCUREMENT GOVERNANCE INTELLIGENCE — THREE-RQ LEAKAGE AUDIT
+  Generated: 2026-07-01 02:08
+
+
+  PASS: 20  FAIL: 0  WARN: 3  SKIP: 0
+
+  RQ1 — Supplier Network Intelligence
+
+
+[PASS] [RQ1·T2-01] Graph uses training-year contracts only
+   Status   : PASS | Severity: HIGH
+   Detail   : Temporal filter detected in graph construction.
+
+[PASS] [RQ1·T2-02] Centrality joined (not re-fitted) to test rows
+   Status   : PASS | Severity: HIGH
+   Detail   : Merge/join pattern found; build_graph not called on test data.
+
+[PASS] [RQ1·T2-03] Louvain run on training-year graph only
+   Status   : PASS | Severity: HIGH
+   Detail   : Temporal filter precedes Louvain call.
+
+[PASS] [RQ1·T4-04] HHI uses historical rolling window (SQL)
+   Status   : PASS | Severity: HIGH
+   Detail   : SQL window function with ORDER BY award_year detected — HHI is computed cumulatively, not from full dataset.
+
+[PASS] [RQ1·T4-05] Resilience simulation uses training-period topology
+   Status   : PASS | Severity: MEDIUM
+   Detail   : Resilience simulation present. If T2-01 passes (train-only graph), resilience simulation inherits the correct topology.
+
+[PASS] [RQ1·T2-06] No award_year overlap between train and test
+   Status   : PASS | Severity: HIGH
+   Detail   : Train max year: 2018 | Test min year: 2020 | No overlap.
+
+  RQ2 — Governance Risk Assessment
+
+
+[PASS] [RQ2·T1-01] Label-defining columns absent from feature space
+   Status   : PASS | Severity: CRITICAL
+   Detail   : No label-defining columns found in model feature list ['contract_value_log'].
+
+[PASS] [RQ2·T5-02] Label-rule inputs NOT in model feature matrix
+   Status   : PASS | Severity: CRITICAL
+   Detail   : None of the label-rule input columns are in the model's FEATURES list. Model uses only safe features.
+
+[PASS] [RQ2·T3-03] OOF (cross_val_predict) used for training-period scores
+   Status   : PASS | Severity: HIGH
+   Detail   : cross_val_predict found in rq2_governance.py.
+
+[PASS] [RQ2·T3-04] Predictions parquet has score_type column
+   Status   : PASS | Severity: HIGH
+   Detail   : score_type present. out_of_fold=471,136, held_out=123,340
+
+[PASS] [RQ2·T6-05] VAL_YEARS and TEST_YEARS do not overlap
+   Status   : PASS | Severity: HIGH
+   Detail   : VAL_YEARS (2019, 2020) and TEST_YEARS (2020, 2021) appear non-overlapping.
+
+[PASS] [RQ2·T2-06] No contract_id overlap between train and test
+   Status   : PASS | Severity: HIGH
+   Detail   : Train 704 | Test 131 | Zero contract_id overlap.
+
+[PASS] [RQ2·T1-07] RQ2_LABEL_INPUTS constant defined in config
+   Status   : PASS | Severity: HIGH
+   Detail   : LABEL_INPUTS exclusion list found in config.py — label-defining columns are formally tracked.
+
+[PASS] [RQ2·T7-08] Model features are not strong proxies for the label
+   Status   : PASS | Severity: HIGH
+   Detail   : All model features below proxy threshold 0.55. contract_value_log: |corr|=0.52 (vs contract_amendments)
+
+  RQ3 — Price Intelligence
+
+
+[PASS] [RQ3·T1-01] Price target not tautologically in feature matrix
+   Status   : PASS | Severity: CRITICAL
+   Detail   : No near-perfect price proxies found in feature columns.
+
+[WARN] [RQ3·T5-02] GBR R² not suspiciously high (>0.95 = leakage risk)
+   Status   : WARN | Severity: MEDIUM
+   Detail   : GBR R² = 0.2832 — below target threshold of 0.30. Check feature quality and CPV category filtering.
+
+[PASS] [RQ3·T3-03] OOF residuals used (cross_val_predict)
+   Status   : PASS | Severity: HIGH
+   Detail   : cross_val_predict found in rq3_pricing.py.
+
+[PASS] [RQ3·T3-04] Anomaly flags have residual_source column
+   Status   : PASS | Severity: HIGH
+   Detail   : residual_source present. out_of_fold=15,448, held_out=5,150
+
+[PASS] [RQ3·T2-05] CPV category filter derived from training set only
+   Status   : PASS | Severity: MEDIUM
+   Detail   : Training-set CPV filter pattern detected — test set uses categories seen during training only.
+
+[WARN] [RQ3·T4-06] LOF/IsoForest fitted on train, scored on all
+   Status   : WARN | Severity: MEDIUM
+   Detail   : Both fit_predict() and fit(X_train) found. Verify which is used for final anomaly flags — fit_predict on training data is OK, fit_predict on full/test data is leakage.
+
+[PASS] [RQ3·T3-07] Consensus anomaly rate within expected 4–8%
+   Status   : PASS | Severity: MEDIUM
+   Detail   : Consensus anomaly rate = 5.1%
+
+  Cross-RQ Integration
+
+
+[PASS] [INT·T1-01] RQ2 outputs not used as RQ3 features
+   Status   : PASS | Severity: HIGH
+   Detail   : No RQ2 output columns detected in rq3_pricing.py.
+
+[WARN] [INT·T1-02] Integration uses RQ outputs (not raw features)
+   Status   : WARN | Severity: LOW
+   Detail   : Could not verify integration feature sources.
+
+  VERDICT: PASS — No confirmed leakage — safe to report results

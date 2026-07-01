@@ -1,0 +1,74 @@
+======================================================================
+  PROCUREMENT GOVERNANCE INTELLIGENCE — LEAKAGE AUDIT REPORT
+  Generated: 2026-06-03 12:28
+======================================================================
+
+  [PASS] PASSED: 9  [FAIL] FAILED: 4  [WARN]  WARNED: 1
+
+
+[FAIL] [T1-001] No label-defining cols in feature matrix
+   Status   : FAIL | Severity: CRITICAL
+   Detail   : Found 9 label-defining column(s) in naive feature set: ['R_gov', 'R_proc', 'R_comp', 'R_dep', 'R_corr', 'R_sup', 'single_bidder_flag', 'governance_score', 'ensemble_risk_prob']. A model trained on these achieves AUC≈1.000 trivially.
+   Fix      : Exclude from FEATURES list: ['R_gov', 'R_proc', 'R_comp', 'R_dep', 'R_corr', 'R_sup', 'single_bidder_flag', 'governance_score', 'ensemble_risk_prob']
+
+[FAIL] [T1-002] AUC ceiling detection (empirical)
+   Status   : FAIL | Severity: CRITICAL
+   Detail   : AUC with leaking features = 0.9998 (≈1.000 = confirmed leakage). AUC with clean features = 0.9773. Gap = 0.0224.
+   Fix      : Remove label-defining columns from FEATURES list in config.py
+
+[PASS] [T1-003] single_bid_rate not in safe feature set
+   Status   : PASS | Severity: HIGH
+   Detail   : single_bid_rate variants are not in the safe feature set.
+
+[PASS] [T2-001] Train/test temporal boundary correct
+   Status   : PASS | Severity: HIGH
+   Detail   : Train: 2006–2016 | Test: 2019–2021 | Gap years (2017, 2018) correctly excluded.
+
+[PASS] [T2-002] No contract_id overlap between train and test
+   Status   : PASS | Severity: HIGH
+   Detail   : Train: 685 contracts | Test: 181 | Zero overlap confirmed.
+
+[WARN] [T2-003] Supplier HHI uses historical data only
+   Status   : WARN | Severity: HIGH
+   Detail   : Mean HHI diff (full vs historical) = 0.0527 (max = 0.2912). This suggests HHI is computed from all years and then joined, which leaks future contracts into features.
+   Fix      : Recompute HHI using only contracts with award_year < focal_contract.award_year. Use SQL window functions: SUM(...) OVER (PARTITION BY buyer_id ORDER BY award_year ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING)
+
+[PASS] [T2-004] Gap years 2017–2018 excluded from both splits
+   Status   : PASS | Severity: HIGH
+   Detail   : Gap years correctly excluded. 134 rows in gap period (not used in any split).
+
+[FAIL] [T3-001] Predictions parquet has score_type column
+   Status   : FAIL | Severity: HIGH
+   Detail   : 'score_type' column missing from data/results/rq2_governance_predictions.parquet. Columns present: ['contract_id', 'buyer_id', 'supplier_id', 'cpv_division', 'procedure_type', 'award_year', 'contract_amendments', 'ensemble_risk_prob', 'risk_class']. In-sample (training period) scores are indistinguishable from out-of-sample (test period) scores.
+   Fix      : Add score_type='out_of_fold' for train-period rows (via cross_val_predict) and score_type='held_out' for test-period rows.
+
+[PASS] [T3-002] Success metrics computed on test set only
+   Status   : PASS | Severity: HIGH
+   Detail   : Evaluation period recorded: [2019, 2020]
+
+[PASS] [T3-003] cross_val_predict used for training-period scores
+   Status   : PASS | Severity: HIGH
+   Detail   : cross_val_predict found in rq2_governance.py.
+
+[PASS] [T4-001] Supplier centrality graph uses historical data only
+   Status   : PASS | Severity: HIGH
+   Detail   : Temporal filtering detected in graph construction source.
+
+[PASS] [T4-002] HHI computed from historical contracts only
+   Status   : PASS | Severity: HIGH
+   Detail   : Temporal constraint found in HHI computation.
+
+[PASS] [T4-003] RQ3 GBR residuals computed on test/OOF only
+   Status   : PASS | Severity: HIGH
+   Detail   : cross_val_predict found — OOF residuals in use.
+
+[FAIL] [B-001] Feature-label correlation sniff test
+   Status   : FAIL | Severity: CRITICAL
+   Detail   : CRITICAL correlations (|r|>0.95 — almost certainly leaking):
+     R_gov: pearson=0.922, spearman=0.968
+     governance_score: pearson=0.911, spearman=0.954
+   Fix      : Remove or rederive features with |r|>0.95 against risk_label.
+
+======================================================================
+  VERDICT: [FAIL] 4 leakage issue(s) found — DO NOT submit results until fixed
+======================================================================

@@ -1,0 +1,68 @@
+======================================================================
+  PROCUREMENT GOVERNANCE INTELLIGENCE — LEAKAGE AUDIT REPORT
+  Generated: 2026-06-04 19:18
+======================================================================
+
+  [PASS] PASSED: 13  [FAIL] FAILED: 0  [WARN]  WARNED: 1
+
+
+[PASS] [T1-001] No label-defining cols in feature matrix
+   Status   : PASS | Severity: HIGH
+   Detail   : No label-defining columns found in feature matrix.
+
+[PASS] [T1-002] AUC ceiling detection (empirical)
+   Status   : PASS | Severity: HIGH
+   Detail   : AUC with actual model features = 0.6672 — within safe limits (<0.95).
+
+[PASS] [T1-003] single_bid_rate not in safe feature set
+   Status   : PASS | Severity: HIGH
+   Detail   : single_bid_rate variants are not in the safe feature set.
+
+[PASS] [T2-001] Train/test temporal boundary correct
+   Status   : PASS | Severity: HIGH
+   Detail   : Train: 2006–2016 | Test: 2019–2021 | Gap years (2017, 2018) correctly excluded.
+
+[PASS] [T2-002] No contract_id overlap between train and test
+   Status   : PASS | Severity: HIGH
+   Detail   : Train: 685 contracts | Test: 181 | Zero overlap confirmed.
+
+[WARN] [T2-003] Supplier HHI uses historical data only
+   Status   : WARN | Severity: HIGH
+   Detail   : Mean HHI diff (full vs historical) = 0.0527 (max = 0.2912). This suggests HHI is computed from all years and then joined, which leaks future contracts into features.
+   Fix      : Recompute HHI using only contracts with award_year < focal_contract.award_year. Use SQL window functions: SUM(...) OVER (PARTITION BY buyer_id ORDER BY award_year ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING)
+
+[PASS] [T2-004] Gap years 2017–2018 excluded from both splits
+   Status   : PASS | Severity: HIGH
+   Detail   : Gap years correctly excluded. 134 rows in gap period (not used in any split).
+
+[PASS] [T3-001] Predictions parquet has score_type column
+   Status   : PASS | Severity: HIGH
+   Detail   : score_type column present. Distribution: {'out_of_fold': 471136, 'held_out': 123340}
+
+[PASS] [T3-002] Success metrics computed on test set only
+   Status   : PASS | Severity: HIGH
+   Detail   : Evaluation period recorded: [2020, 2020]
+
+[PASS] [T3-003] cross_val_predict used for training-period scores
+   Status   : PASS | Severity: HIGH
+   Detail   : cross_val_predict found in rq2_governance.py.
+
+[PASS] [T4-001] Supplier centrality graph uses historical data only
+   Status   : PASS | Severity: HIGH
+   Detail   : Temporal filtering detected in graph construction source.
+
+[PASS] [T4-002] HHI computed from historical contracts only
+   Status   : PASS | Severity: HIGH
+   Detail   : Temporal constraint found in HHI computation.
+
+[PASS] [T4-003] RQ3 GBR residuals computed on test/OOF only
+   Status   : PASS | Severity: HIGH
+   Detail   : cross_val_predict found — OOF residuals in use.
+
+[PASS] [B-001] Feature-label correlation sniff test
+   Status   : PASS | Severity: HIGH
+   Detail   : No features with suspiciously high correlation to risk_label detected.
+
+======================================================================
+  VERDICT: [PASS] No leakage detected — safe to train models
+======================================================================
