@@ -47,7 +47,8 @@ def render_provenance_expander(root: Path, expanded: bool = False) -> None:
     """Data-provenance in a collapsed 'Methodology / provenance' expander in the
     main body, not shown unconditionally to every end user in the sidebar."""
     with st.expander("Methodology / provenance", expanded=expanded):
-        meta_path = Path(root) / "data" / "results" / "pipeline_metadata.json"
+        from dashboard._auth import DASHBOARD_DATA_RESULTS
+        meta_path = DASHBOARD_DATA_RESULTS / "pipeline_metadata.json"
         if meta_path.exists():
             try:
                 meta = json.loads(meta_path.read_text())

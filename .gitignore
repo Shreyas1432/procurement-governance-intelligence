@@ -72,6 +72,13 @@ docs/references.bib
 # raw dataset — never commit large parquets
 *.parquet
 
+# data/public/ is the pseudonymized-at-rest mirror for the Streamlit Cloud
+# public build (see scripts/build_public_data.py, DEPLOY.md Path 1) --
+# un-ignore it despite the blanket *.parquet rule above. data/raw/,
+# data/curated/, data/features/, data/models/, data/results/ (the real,
+# unpseudonymized directories) stay excluded by the rules at the top.
+!data/public/**
+
 # src/dashboard/ tracked selectively: source only. Secrets, auth store,
 # logs, and the stray nested .streamlit/ (unrelated app_password key,
 # see DEPLOY.md) stay excluded.
@@ -84,6 +91,13 @@ results/
 outputs/
 reports/
 refactor/
+
+# The bare "results/" rule above matches ANY path component named "results"
+# (unanchored), which excludes the data/public/results/ DIRECTORY itself --
+# git won't look inside an excluded directory for negated file patterns, so
+# the directory has to be un-excluded too, not just its contents.
+!data/public/results/
+!data/public/results/**
 
 # Temp dirs
 duckdb_temp/

@@ -25,7 +25,7 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "src"))
 
-from dashboard._auth import require_auth, render_logout_button, anonymize_id, log_action, PUBLIC_BUILD
+from dashboard._auth import require_auth, render_logout_button, anonymize_id, log_action, PUBLIC_BUILD, DASHBOARD_DATA_RESULTS
 from dashboard._theme import inject_base_css, INK, INK_MUTED, FONT_SERIF, PRIMARY, AMBER, SAGE
 from dashboard._components import small_stat_card, neutral_methodology_note, chart_card, why_this_matters
 from dashboard._shell import render_sidebar_wordmark, render_topbar, render_role_switcher
@@ -85,7 +85,7 @@ def _reason_text(row: dict, sd: float) -> str:
 
 @st.cache_data(show_spinner="Loading price variance artifacts...")
 def load_rq3():
-    base = ROOT / "data" / "results"
+    base = DASHBOARD_DATA_RESULTS
     anomalies = pl.read_parquet(base / "rq3_anomaly_flags.parquet")
     success = json.loads((base / "rq3_success_metrics.json").read_text())
     ci = json.loads((base / "model_performance_ci.json").read_text())

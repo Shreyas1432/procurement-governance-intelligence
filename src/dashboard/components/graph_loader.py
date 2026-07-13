@@ -39,8 +39,9 @@ def load_bipartite_edges(root: Path) -> pl.DataFrame:
     import sys
     sys.path.insert(0, str(root))
     from src.core.config import TRAIN_YEARS
+    from dashboard._auth import DASHBOARD_DATA_FEATURES
 
-    features_path = Path(root) / "data" / "features" / "rq1_network_features.parquet"
+    features_path = DASHBOARD_DATA_FEATURES / "rq1_network_features.parquet"
     contracts = pl.read_parquet(features_path)
     return (
         contracts.filter(pl.col("award_year").is_between(min(TRAIN_YEARS), max(TRAIN_YEARS)))

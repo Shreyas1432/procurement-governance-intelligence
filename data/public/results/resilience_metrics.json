@@ -1,0 +1,33 @@
+{
+  "sample_config": {
+    "frac": 0.35,
+    "seed": 42,
+    "source_years": [
+      2014,
+      2018
+    ],
+    "source_file": "rq1_network_features.parquet"
+  },
+  "coverage": {
+    "edge_frac_retained": 0.3499962876215804,
+    "node_frac_retained_buyers": 0.8708646883430357,
+    "node_frac_retained_suppliers": 0.4361183938648727,
+    "value_frac_retained": 0.3820073356999552,
+    "n_buyers": 12267,
+    "n_suppliers": 64375,
+    "n_edges": 103706,
+    "largest_component_share_sample": 0.9305472195401999,
+    "largest_component_share_full_rq1": 0.9888555613964563
+  },
+  "rank_weights": {
+    "exposed_value": 0.4,
+    "orphaned_count": 0.3,
+    "fragmentation_impact": 0.3
+  },
+  "global_summary": {
+    "n_articulation_points": 11085,
+    "n_stranded_buyer_candidates_degree1": 1190,
+    "n_communities": 1950
+  },
+  "caveat": "exposed value is the award value currently routed through a node, not an estimate of financial loss."
+}

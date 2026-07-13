@@ -22,7 +22,7 @@ from scipy.stats import spearmanr
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "src"))
 
-from dashboard._auth import require_auth, render_logout_button
+from dashboard._auth import require_auth, render_logout_button, DASHBOARD_DATA_RESULTS
 from dashboard._theme import inject_base_css, INK, INK_MUTED, FONT_SERIF, RUST, RUST_TINT, RUST_DARK
 from dashboard._components import small_stat_card, neutral_methodology_note, chart_card, why_this_matters, status_pill
 from dashboard._shell import render_sidebar_wordmark, render_topbar, render_role_switcher
@@ -37,7 +37,7 @@ render_topbar("PGI / Cross-RQ Integration")
 
 @st.cache_data(show_spinner="Loading integration artifacts...")
 def load_integration():
-    base = ROOT / "data" / "results"
+    base = DASHBOARD_DATA_RESULTS
     integ = json.loads((base / "integration_metrics.json").read_text())
     effects = json.loads((base / "cross_effect_sizes.json").read_text())
     unified = pl.read_parquet(base / "unified_risk_scores.parquet")

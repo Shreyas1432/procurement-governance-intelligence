@@ -1,0 +1,28 @@
+{
+  "contracts": 594476,
+  "high_risk_contracts": 215,
+  "mean_unified_risk": 0.25407729878845403,
+  "rq1_rq2_corr": -0.010728094787905384,
+  "rq1_rq2_corr_status": {
+    "value": -0.010728094787905384,
+    "status": "computed",
+    "n_paired": 594476,
+    "n_total": 594476,
+    "coverage_fraction": 1.0,
+    "observed_value": -0.010728094787905384
+  },
+  "rq2_rq3_corr": null,
+  "rq2_rq3_corr_status": {
+    "value": null,
+    "status": "degenerate_low_coverage",
+    "n_paired": 49255,
+    "n_total": 594476,
+    "coverage_fraction": 0.08285448024815131,
+    "observed_value": 0.7391535600213783
+  },
+  "anova_f_statistic": 20961.589584959118,
+  "anova_p_value": 0.0,
+  "chi_square_statistic": 13626.316413318424,
+  "chi_square_p_value": 0.0,
+  "number_of_communities_tested": 79
+}

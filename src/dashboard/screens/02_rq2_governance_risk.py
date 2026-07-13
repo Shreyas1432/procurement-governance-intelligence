@@ -25,7 +25,7 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "src"))
 
-from dashboard._auth import require_auth, render_logout_button, anonymize_id, log_action, PUBLIC_BUILD
+from dashboard._auth import require_auth, render_logout_button, anonymize_id, log_action, PUBLIC_BUILD, DASHBOARD_DATA_RESULTS, DASHBOARD_DATA_FEATURES
 from dashboard._theme import inject_base_css, INK, INK_MUTED, FONT_SERIF, RUST, RUST_DARK, RUST_TINT
 from dashboard._components import (
     small_stat_card, methodology_callout, neutral_methodology_note,
@@ -46,7 +46,7 @@ role = st.session_state.get("role")
 
 @st.cache_data(show_spinner="Loading governance risk artifacts...")
 def load_rq2():
-    base = ROOT / "data" / "results"
+    base = DASHBOARD_DATA_RESULTS
     return {
         "success": json.loads((base / "rq2_success_metrics.json").read_text()),
         "disposition": json.loads((base / "rq2_feature_disposition.json").read_text()),
@@ -72,8 +72,8 @@ def load_value_curve():
     both a percentile and whether that percentile sits in a locked, observed
     high-flag-rate region of the curve, without ever re-fitting anything.
     """
-    base = ROOT / "data" / "results"
-    features_path = ROOT / "data" / "features" / "rq2_governance_features.parquet"
+    base = DASHBOARD_DATA_RESULTS
+    features_path = DASHBOARD_DATA_FEATURES / "rq2_governance_features.parquet"
     feat = pl.read_parquet(features_path).select(["contract_id", "contract_value_log"])
     feat_u = feat.unique(subset=["contract_id"], keep="first")
 
@@ -225,7 +225,7 @@ with cm1:
     st.plotly_chart(fig, width="stretch", key="rq2_confusion_matrix")
 with cm2:
     chart_card("Risk score by contract value", "Binned mean predicted risk against contract value, the model's only feature.")
-    img_path = ROOT / "data" / "results" / "rq2_value_only_pdp.png"
+    img_path = DASHBOARD_DATA_RESULTS / "rq2_value_only_pdp.png"
     if img_path.exists():
         st.image(str(img_path), width="stretch")
         why_this_matters("Locked partial dependence plot from the pipeline run, not recomputed here. The relationship is not a straight line: risk does not simply rise or fall with value.")

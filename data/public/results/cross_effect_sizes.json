@@ -1,0 +1,8 @@
+{
+  "anova_eta_squared": 0.7534018183659988,
+  "chi2_cramer_v": 0.9617128988768361,
+  "anova_f_statistic": 20961.589584959118,
+  "chi2_statistic": 13626.316413318424,
+  "n_communities_tested": 79,
+  "note": "eta^2 = SS_between / SS_total for ensemble_risk_prob across Louvain communities (n >= 10 contracts, 79 communities). Cramer's V = sqrt(chi2 / (n * min(r-1, c-1))) for anomaly_flag x community. F and chi2 from locked integration_metrics.json."
+}

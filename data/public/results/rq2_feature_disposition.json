@@ -1,0 +1,121 @@
+{
+  "summary": "Disposition of every RQ2 candidate feature evaluated. disposition_type in {kept, leakage_reject, redundancy_drop, constant_at_test, null_integration}. tender_lotscount is a redundancy_drop (r below the 0.55 leakage gate), NOT a leakage rejection; buyer_region is rejected by eta (correlation ratio), a different statistic from the Pearson |corr| gate.",
+  "leakage_gate": 0.55,
+  "candidates": [
+    {
+      "feature": "contract_value_log",
+      "stage": "modelling_candidate",
+      "disposition_type": "kept",
+      "decisive_metric": "2020 TEST ROC-AUC (headline)",
+      "decisive_value": 0.825809150694147,
+      "gate_tripped": "none",
+      "note": "The entire value-only model."
+    },
+    {
+      "feature": "tender_lotscount",
+      "stage": "clean_feature_exploration",
+      "disposition_type": "redundancy_drop",
+      "decisive_metric": "|corr| with contract_value_log (Pearson)",
+      "decisive_value": 0.532,
+      "gate_statistic": "Pearson |corr|",
+      "gate_tripped": "NO -- 0.53 is BELOW the 0.55 leakage gate; dropped for redundancy / negligible marginal lift (+0.0013), NOT a leakage rejection.",
+      "marginal_test_auc_lift": 0.0013,
+      "marginal_lift_note": "FLAG (B3): tender_lotscount and buyer_region BOTH store marginal lift +0.00130; tender_lotscount has no per-fold evidence and buyer_region's own per-fold CV lifts average ~0.00575 (!= 0.0013), so the twin value is UNVERIFIED / likely templated. A precise independent recompute needs an ablation refit (disallowed this pass: no separate refits). Substantive conclusion is unchanged: the lift is negligible (~0).",
+      "source": "rq2_feature_exploration_nulls.json"
+    },
+    {
+      "feature": "buyer_concentration_hhi",
+      "stage": "modelling_candidate",
+      "disposition_type": "leakage_reject",
+      "decisive_metric": "|corr| with buyer_dependency_ratio (a label-rule input)",
+      "decisive_value": 0.7707422089839209,
+      "gate_tripped": "YES -- 0.77 > 0.55 proxy gate; reconstructs the label's dependency trigger.",
+      "source": "rq2_hhi_proxy_null.json"
+    },
+    {
+      "feature": "buyer_region",
+      "stage": "clean_feature_exploration",
+      "disposition_type": "leakage_reject",
+      "decisive_metric": "eta (correlation ratio, categorical->numeric) with contract_amendments (a label-rule input)",
+      "decisive_value": 0.966,
+      "gate_statistic": "eta (correlation ratio) -- NOT Pearson |corr|",
+      "gate_tripped": "YES (by eta, not Pearson) -- eta 0.966 >> 0.55.",
+      "mechanism": "Second-order proxy: categorical buyer_region explains 96.6% of contract_amendments variance (eta=0.966); contract_amendments is itself a label-rule input, so buyer_region is a proxy-of-a-proxy. Rejected by the proxy principle, evidenced by eta (categorical association), distinct from the Pearson-|corr| gate that rejected buyer_concentration_hhi.",
+      "marginal_test_auc_lift": 0.0013,
+      "marginal_lift_note": "FLAG (B3): stored +0.00130 equals tender_lotscount's at 4 dp but buyer_region's own per_fold_lifts [0.006, 0.013, 0.001, 0.003] average ~0.00575 != 0.0013 -- the headline test-lift is UNVERIFIED / likely templated. Precise recompute needs an ablation refit (disallowed: no separate refits). Conclusion unchanged: negligible.",
+      "source": "rq2_feature_exploration_nulls.json"
+    },
+    {
+      "feature": "supplier_centrality",
+      "stage": "modelling_candidate",
+      "disposition_type": "null_integration",
+      "decisive_metric": "standalone 2020 TEST ROC-AUC (RQ1->RQ2 hand-off)",
+      "decisive_value": 0.49,
+      "gate_tripped": "none -- ~chance alone (~0.49), ~0 marginal; reported null.",
+      "source": "documented prior, THRESHOLD_JUSTIFICATION.md Section 10.4"
+    },
+    {
+      "feature": "cpv_enc",
+      "stage": "modelling_candidate",
+      "disposition_type": "leakage_reject",
+      "decisive_metric": "|corr| ~0.60 with the label (procedure_type proxy); arbitrary high-cardinality ordinal encoding",
+      "decisive_value": 0.6,
+      "gate_tripped": "YES -- ~0.60 > 0.55 proxy WARN gate; ~0 marginal AUC over contract_value_log.",
+      "source": "documented prior, THRESHOLD_JUSTIFICATION.md Section 10.1"
+    },
+    {
+      "feature": "cpv_risk_score",
+      "stage": "modelling_candidate",
+      "disposition_type": "leakage_reject",
+      "decisive_metric": "|corr| ~0.60 with the label; deterministic function of cpv_enc",
+      "decisive_value": 0.6,
+      "gate_tripped": "YES -- ~0.60 > 0.55 proxy WARN gate; redundant procedure_type proxy, ~0 marginal AUC.",
+      "source": "documented prior, THRESHOLD_JUSTIFICATION.md Section 10.1"
+    },
+    {
+      "feature": "award_year",
+      "stage": "modelling_candidate",
+      "disposition_type": "constant_at_test",
+      "decisive_metric": "distinct award_year values within the 2020 TEST split",
+      "decisive_value": 1,
+      "gate_tripped": "constant (=2020) at test -> zero discriminative variance; retained only as the temporal-split key.",
+      "source": "TEST split is TEST_YEARS=[2020]"
+    }
+  ],
+  "reconciliation": {
+    "N_evaluated": 8,
+    "canonical_statement": "8 features were evaluated. cpv_enc and cpv_risk_score are two encodings of one procedure-type signal; award_year is the temporal-split key (constant at test). Excluding these leaves 5 substantive non-value candidates, of which 0 survived and contract_value_log was retained -- i.e. value-only. 4 are documented nulls (supplier_centrality, buyer_concentration_hhi, buyer_region, tender_lotscount); the 5th removal is the cpv pair as a procedure proxy.",
+    "buckets": {
+      "kept_value_feature": [
+        "contract_value_log"
+      ],
+      "cpv_pair_two_encodings_one_procedure_signal": [
+        "cpv_enc",
+        "cpv_risk_score"
+      ],
+      "temporal_split_key_constant_at_test": [
+        "award_year"
+      ],
+      "documented_nulls": [
+        "supplier_centrality",
+        "buyer_concentration_hhi",
+        "buyer_region",
+        "tender_lotscount"
+      ]
+    },
+    "counts": {
+      "N_evaluated": 8,
+      "N_kept": 1,
+      "N_documented_nulls": 4,
+      "cpv_encodings_of_one_signal": 2,
+      "temporal_split_keys": 1,
+      "substantive_non_value_candidate_signals": 5,
+      "substantive_non_value_signals_survived": 0
+    },
+    "gate_statistic_generalisation": "The proxy gate generalises to 'association with a label input by the appropriate statistic': Pearson |corr| for numeric candidates (e.g. buyer_concentration_hhi 0.77), and eta (correlation ratio, categorical->numeric) for categorical candidates (buyer_region 0.966). eta is NOT the Pearson |corr| gate; the two are distinct statistics applied to distinct feature types.",
+    "supersedes": "the earlier unexplained 'N_initial=6 -> N_kept=1' framing; the literal table has 8 rows, bucketed transparently above.",
+    "authoritative_for": "rq2_report.md Section 6.4 feature drop-ladder",
+    "consistent": true,
+    "flag": "OK: 8 evaluated reconcile (1 kept value feature; cpv pair = 1 signal; award_year = split key; 4 documented nulls; 0 substantive non-value candidates survived)."
+  }
+}

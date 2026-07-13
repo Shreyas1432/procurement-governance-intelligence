@@ -20,7 +20,7 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "src"))
 
-from dashboard._auth import require_auth
+from dashboard._auth import require_auth, DASHBOARD_DATA_RESULTS
 from dashboard._theme import inject_base_css, INK, INK_MUTED, FONT_SERIF, PRIMARY
 from dashboard._components import small_stat_card, neutral_methodology_note, chart_card, why_this_matters
 from dashboard._shell import render_sidebar_wordmark, render_topbar, render_role_switcher, entity_picker, node_info_panel
@@ -39,7 +39,7 @@ role = st.session_state.get("role")
 
 @st.cache_data(show_spinner="Loading network artifacts...")
 def load_rq1():
-    base = ROOT / "data" / "results"
+    base = DASHBOARD_DATA_RESULTS
     return {
         "success": __import__("json").loads((base / "rq1_success_metrics.json").read_text()),
         "network": pl.read_parquet(base / "rq1_network_metrics.parquet"),

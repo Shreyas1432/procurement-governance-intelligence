@@ -15,7 +15,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from dashboard._auth import (
     require_auth, render_change_password_form, render_logout_button,
-    ADMIN, VIEWER, ROLE_LONG_LABEL,
+    ADMIN, VIEWER, ROLE_LONG_LABEL, DASHBOARD_DATA_RESULTS,
 )
 from dashboard._theme import inject_base_css, INK, INK_MUTED, INK_QUIET, FONT_SERIF, PRIMARY
 from dashboard._components import stat_card, caveat_banner, methodology_callout
@@ -58,9 +58,9 @@ st.markdown(
 caveat_banner()
 
 # stats
-meta_path = ROOT / "data" / "results" / "pipeline_metadata.json"
-rq2_path = ROOT / "data" / "results" / "rq2_success_metrics.json"
-rq3_path = ROOT / "data" / "results" / "rq3_success_metrics.json"
+meta_path = DASHBOARD_DATA_RESULTS / "pipeline_metadata.json"
+rq2_path = DASHBOARD_DATA_RESULTS / "rq2_success_metrics.json"
+rq3_path = DASHBOARD_DATA_RESULTS / "rq3_success_metrics.json"
 
 try:
     rq2_meta = json.loads(rq2_path.read_text())

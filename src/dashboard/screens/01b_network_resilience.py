@@ -26,7 +26,7 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
-from dashboard._auth import require_auth, render_logout_button, anonymize_id, log_action, PUBLIC_BUILD
+from dashboard._auth import require_auth, render_logout_button, anonymize_id, log_action, PUBLIC_BUILD, DASHBOARD_DATA_RESULTS, DASHBOARD_DATA_FEATURES
 from dashboard._theme import inject_base_css, INK, INK_MUTED, FONT_SERIF, PRIMARY
 from dashboard._components import small_stat_card, neutral_methodology_note, why_this_matters, caveat_banner, what_if_force_graph, WHAT_IF_FORCE_GRAPH_NODE_CAP
 from dashboard._shell import render_sidebar_wordmark, render_topbar, render_role_switcher, entity_picker
@@ -59,12 +59,15 @@ UI_COMMUNITY_REMOVAL_CAP = 30
 
 @st.cache_resource(show_spinner="Loading resilience sample graph...")
 def get_sample_graph():
-    return load_sample()
+    return load_sample(
+        features_path=DASHBOARD_DATA_FEATURES / "rq1_network_features.parquet",
+        results_dir=DASHBOARD_DATA_RESULTS,
+    )
 
 
 @st.cache_data(show_spinner="Loading resilience artifacts...")
 def load_artifacts():
-    base = ROOT / "data" / "results"
+    base = DASHBOARD_DATA_RESULTS
     metrics = json.loads((base / "resilience_metrics.json").read_text())
     table = pl.read_parquet(base / "resilience_exposure_table.parquet")
     node_info = {row["node_id"]: row for row in table.iter_rows(named=True)}

@@ -1,0 +1,10 @@
+{
+  "total_contracts": 20598,
+  "gb_r2": 0.2832145934912472,
+  "gb_rmse": 1.811352843607013,
+  "baseline_rmse": 2.0400404383259216,
+  "rmse_reduction": 0.11209954000057576,
+  "lof_gb_overlap": 0.07834907310248339,
+  "consensus_anomaly_count": 1046,
+  "consensus_anomaly_rate": 0.05078162928439654
+}

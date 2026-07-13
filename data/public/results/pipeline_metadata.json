@@ -1,0 +1,9 @@
+{
+  "run_date": "2026-06-15T20:12:38",
+  "total_records": 594476,
+  "train_cutoff": 2018,
+  "test_start": 2020,
+  "rq2_auc_xgb": 0.824904894465996,
+  "rq3_r2_gbr": 0.2832145934912472,
+  "anomaly_consensus_rate": 0.05078162928439654
+}

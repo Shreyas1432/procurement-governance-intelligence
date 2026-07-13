@@ -90,7 +90,12 @@ def _value_stratified_sample(all_edges: pl.DataFrame, frac: float, seed: int) ->
     return all_edges[selected.tolist()]
 
 
-def load_sample(seed: int = RESILIENCE_SEED, frac: float = RESILIENCE_SAMPLE_FRAC):
+def load_sample(
+    seed: int = RESILIENCE_SEED,
+    frac: float = RESILIENCE_SAMPLE_FRAC,
+    features_path: Path | None = None,
+    results_dir: Path | None = None,
+):
     """Load the curated 2014-2018 edge list, sample it, and build a bipartite graph.
 
     Returns (graph, coverage_stats). The graph mirrors
@@ -100,8 +105,13 @@ def load_sample(seed: int = RESILIENCE_SEED, frac: float = RESILIENCE_SAMPLE_FRA
     (contract value) and ``contracts`` (contract count). Buyer nodes also
     carry a ``cpv`` attribute (their most frequent cpv_division in the
     sample), used for the substitutability proxy in simulate_removal.
+
+    ``features_path``/``results_dir`` default to the module's normal
+    DATA_FEATURES/DATA_RESULTS (the real compute pipeline's locations) and
+    exist only so the dashboard's public build can point this same function
+    at data/public/ without this module importing anything dashboard-specific.
     """
-    contracts_path = DATA_FEATURES / "rq1_network_features.parquet"
+    contracts_path = features_path or (DATA_FEATURES / "rq1_network_features.parquet")
     if not contracts_path.exists():
         raise FileNotFoundError("Run feature engineering before the resilience module")
     contracts = pl.read_parquet(contracts_path)
@@ -165,7 +175,7 @@ def load_sample(seed: int = RESILIENCE_SEED, frac: float = RESILIENCE_SAMPLE_FRA
     else:
         giant_share_sample = 0.0
 
-    giant_share_full = _full_graph_giant_share()
+    giant_share_full = _full_graph_giant_share(results_dir)
 
     coverage = {
         "sample_config": {
@@ -213,11 +223,11 @@ def load_sample(seed: int = RESILIENCE_SEED, frac: float = RESILIENCE_SAMPLE_FRA
     return G, coverage
 
 
-def _full_graph_giant_share():
+def _full_graph_giant_share(results_dir: Path | None = None):
     """Read the already-characterised full-graph giant-component share from
     the locked RQ1 metrics, rather than rebuilding the ~296K-edge graph here.
     Returns None if RQ1 has not been run yet."""
-    path = DATA_RESULTS / "rq1_success_metrics.json"
+    path = (results_dir or DATA_RESULTS) / "rq1_success_metrics.json"
     if not path.exists():
         return None
     import json
