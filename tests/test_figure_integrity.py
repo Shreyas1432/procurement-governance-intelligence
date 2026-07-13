@@ -25,9 +25,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-# ---------------------------------------------------------------------------
 # Paths (all relative to project root)
-# ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parent.parent
 DATA_RESULTS  = ROOT / "data" / "results"
 DATA_FEATURES = ROOT / "data" / "features"
@@ -38,9 +36,7 @@ RQ3_METRICS_JSON = DATA_RESULTS / "rq3_success_metrics.json"
 RQ1_SOURCE_PY    = ROOT / "src" / "rq1_supplier_network" / "rq1_network.py"
 
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 def _load_json(path: Path) -> dict:
     with path.open(encoding="utf-8") as fh:
@@ -59,9 +55,7 @@ def _read_parquet(path: Path):
         return {col: tbl.column(col).to_pylist() for col in tbl.column_names}
 
 
-# ---------------------------------------------------------------------------
-# G1 — Top-decile centrality concentration (>= 5x overall mean)
-# ---------------------------------------------------------------------------
+# G1: top-decile centrality concentration (>= 5x overall mean)
 
 @pytest.mark.skipif(not RQ1_NETWORK_PQ.exists(), reason="rq1_network_metrics.parquet not found")
 def test_g1_top_decile_centrality_ratio():
@@ -93,9 +87,7 @@ def test_g1_top_decile_centrality_ratio():
     )
 
 
-# ---------------------------------------------------------------------------
-# G2 — Operating threshold: figure annotation == f'{v:.3f}' from JSON
-# ---------------------------------------------------------------------------
+# G2: operating threshold, figure annotation == f'{v:.3f}' from JSON
 
 @pytest.mark.skipif(not RQ2_METRICS_JSON.exists(), reason="rq2_success_metrics.json not found")
 def test_g2_operating_threshold_string():
@@ -142,9 +134,7 @@ def test_g2_operating_threshold_string():
     )
 
 
-# ---------------------------------------------------------------------------
-# G3 — PR-AUC canonical 4dp == 0.8336
-# ---------------------------------------------------------------------------
+# G3: PR-AUC canonical 4dp == 0.8336
 
 @pytest.mark.skipif(not RQ2_METRICS_JSON.exists(), reason="rq2_success_metrics.json not found")
 def test_g3_pr_auc_canonical_4dp():
@@ -163,9 +153,7 @@ def test_g3_pr_auc_canonical_4dp():
     )
 
 
-# ---------------------------------------------------------------------------
-# G4 — Centrality: exact reproduction of locked formula + PageRank column present
-# ---------------------------------------------------------------------------
+# G4: centrality, exact reproduction of locked formula plus PageRank column present
 
 @pytest.mark.skipif(not RQ1_NETWORK_PQ.exists(), reason="rq1_network_metrics.parquet not found")
 def test_g4_centrality_exact_reproduction():
@@ -178,7 +166,7 @@ def test_g4_centrality_exact_reproduction():
     NOTE: The current rq1_network.py line 182 uses `0.7·dc + 0.3·bc` (no
     PageRank). This guard tests the LOCKED PARQUET, not the live source.
     If the cache is deleted and the pipeline re-runs, centrality will shift
-    to the current formula — a known reproducibility caveat flagged in
+    to the current formula, a known reproducibility caveat flagged in
     cross_integration_diffs.md (Session 4 round-3).
     """
     try:
@@ -232,9 +220,7 @@ def test_g4_pagerank_column_exists_nonzero():
     )
 
 
-# ---------------------------------------------------------------------------
-# G5 — zero_amend_rate does not round to "100.0%" at 1dp
-# ---------------------------------------------------------------------------
+# G5: zero_amend_rate does not round to "100.0%" at 1dp
 
 @pytest.mark.skipif(not RQ1_FEATURES_PQ.exists(), reason="rq1_network_features.parquet not found")
 def test_g5_zero_amend_rate_not_100_percent():
@@ -282,9 +268,7 @@ def test_g5_zero_amend_rate_not_100_percent():
     # The guard only asserts the :.2% result, which is what the figure now uses.
 
 
-# ---------------------------------------------------------------------------
-# G6 — Consensus anomaly rate in [4%, 8%] → T3-07 PASS
-# ---------------------------------------------------------------------------
+# G6: consensus anomaly rate in [4%, 8%], T3-07 PASS
 
 @pytest.mark.skipif(not RQ3_METRICS_JSON.exists(), reason="rq3_success_metrics.json not found")
 def test_g6_consensus_anomaly_rate_in_band():

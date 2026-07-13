@@ -6,7 +6,7 @@ incentivise re-introducing the log_estimated_price leak that was removed in the
 leak-forensics pass.
 
 Behaviour-preservation gate: consensus_anomaly_rate must remain within the justified
-band [RQ3_ANOMALY_RATE_MIN, RQ3_ANOMALY_RATE_MAX] (0.04 – 0.08).
+band [RQ3_ANOMALY_RATE_MIN, RQ3_ANOMALY_RATE_MAX] (0.04-0.08).
 """
 from src.core.config import RQ3_ANOMALY_RATE_MIN, RQ3_ANOMALY_RATE_MAX
 

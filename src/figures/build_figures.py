@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-PGI Figure Backbone — generates all evidence figures for thesis and defense deck.
+PGI figure backbone: generates all evidence figures for thesis and defense deck.
 
-All thresholds read from config or locked JSON artifacts. No hardcoded magic numbers.
+Thresholds are read from config or locked JSON artifacts, not hardcoded.
 Figures -> docs/figures/  (200 DPI, colorblind-safe Okabe-Ito palette).
 
 Usage:
@@ -27,9 +27,7 @@ import numpy as np
 import pandas as pd
 import polars as pl
 
-# ---------------------------------------------------------------------------
 # Project paths
-# ---------------------------------------------------------------------------
 ROOT = Path(__file__).parent.parent.parent
 DATA_RESULTS = ROOT / "data" / "results"
 DATA_FEATURES = ROOT / "data" / "features"
@@ -37,9 +35,7 @@ DOCS_FIGURES = ROOT / "docs" / "figures"
 AUDIT_REPORT_DIR = ROOT / "Audit_report"
 DOCS_FIGURES.mkdir(parents=True, exist_ok=True)
 
-# ---------------------------------------------------------------------------
 # Colorblind-safe Okabe-Ito palette
-# ---------------------------------------------------------------------------
 BLUE    = "#0072B2"
 ORANGE  = "#E69F00"
 GREEN   = "#009E73"
@@ -74,9 +70,7 @@ def _save(fig, name: str):
     plt.close(fig)
     print(f"  saved: {path.name}")
 
-# ---------------------------------------------------------------------------
 # Load locked values (never hardcode thresholds)
-# ---------------------------------------------------------------------------
 def _load_json(path: Path) -> dict:
     with open(path) as f:
         return json.load(f)
@@ -119,13 +113,11 @@ print(f"  R2_CV={R2_CV_LOCKED:.4f}  RMSE={RMSE_LOCKED:.4f}")
 print(f"  r_dependency_risk={DEPENDENCY_RISK_R:.4f}")
 print(f"  contamination={CONTAMINATION_RATE:.4f}  n_anomalies={CONTAMINATION_COUNT}")
 
-# ---------------------------------------------------------------------------
 # RQ2 predict-only rerun (guarded)
-# ---------------------------------------------------------------------------
 def _run_rq2_predict_only():
     """
     Retrain the locked RQ2 model (pinned seed, n_jobs=1) and extract per-model
-    predictions on the 2020 TEST split.  Assert XGB ROC-AUC == 0.826 (3 dp).
+    predictions on the 2020 TEST split. Asserts XGB ROC-AUC == 0.826 (3 dp).
     Returns (y_test, xgb_prob, lr_prob, rf_prob).
     """
     import pandas as pd
@@ -139,7 +131,7 @@ def _run_rq2_predict_only():
         XGB_AVAILABLE = True
     except ImportError:
         XGB_AVAILABLE = False
-        print("  WARNING: xgboost not available — RF used as XGB proxy for figure shapes")
+        print("  WARNING: xgboost not available, RF used as XGB proxy for figure shapes")
 
     print("  Loading RQ2 features...")
     df = (
@@ -187,7 +179,7 @@ def _run_rq2_predict_only():
             clf_xgb.fit(X_train, y_train)
         xgb_prob = clf_xgb.predict_proba(X_test)[:, 1]
     else:
-        xgb_prob = rf_prob  # fallback — shapes only
+        xgb_prob = rf_prob  # fallback, shapes only
 
     # --- LR (Algorithm 3) ---
     scaler = StandardScaler()
@@ -202,13 +194,13 @@ def _run_rq2_predict_only():
     lr_auc_recomputed  = roc_auc_score(y_test, lr_prob)
     rf_auc_recomputed  = roc_auc_score(y_test, rf_prob)
 
-    print(f"  Guard — XGB AUC recomputed: {xgb_auc_recomputed:.4f}  locked: {XGB_AUC_LOCKED:.4f}")
+    print(f"  Guard: XGB AUC recomputed: {xgb_auc_recomputed:.4f}  locked: {XGB_AUC_LOCKED:.4f}")
     if XGB_AVAILABLE:
         assert round(xgb_auc_recomputed, 3) == round(XGB_AUC_LOCKED, 3), (
             f"GUARD FAIL: XGB AUC {xgb_auc_recomputed:.4f} != locked {XGB_AUC_LOCKED:.4f} (3dp)"
         )
         print("  Guard PASSED: XGB AUC matches locked value (3 dp)")
-    print(f"  Guard — PR-AUC will be checked in numeric guard section")
+    print(f"  Guard: PR-AUC will be checked in numeric guard section")
 
     return y_test, xgb_prob, lr_prob, rf_prob
 
@@ -222,7 +214,7 @@ def _build_cross_rq_join():
     ca  = pl.read_parquet(DATA_RESULTS / "rq1_community_assignments.parquet")
     nm  = pl.read_parquet(DATA_RESULTS / "rq1_network_metrics.parquet")
 
-    # Buyers only — community_id and centrality are buyer-level
+    # Buyers only: community_id and centrality are buyer-level
     buyers_ca = ca.filter(pl.col("node_type") == "buyer").select(
         [pl.col("entity_id").alias("buyer_id"), "community_id"]
     )
@@ -238,9 +230,7 @@ def _build_cross_rq_join():
     return join
 
 
-# =============================================================================
-# RQ1 FIGURES
-# =============================================================================
+# RQ1 figures
 
 def fig_rq1_degree_distribution(nm: pl.DataFrame):
     """Log-log degree distribution with heavy-tail annotation."""
@@ -313,7 +303,7 @@ def fig_rq1_modularity_null(null_df: pl.DataFrame):
                label=f"Null mean = {null_mean:.4f}")
     ax.legend(fontsize=9)
     _style_ax(ax,
-              "Observed Q < Null Mean — Guimerà (2004) Sparse-Graph Inflation",
+              "Observed Q < Null Mean: Guimerà (2004) Sparse-Graph Inflation",
               "Modularity Q", "Count")
     # Annotation explaining Guimera caveat
     ax.text(0.02, 0.97,
@@ -341,7 +331,7 @@ def fig_rq1_community_sizes(ca: pl.DataFrame):
                label="10-contract minimum (cross-RQ analysis)")
     ax.legend(fontsize=10)
     _style_ax(ax,
-              f"Community-Size Distribution — {len(size_arr):,} Communities, Power-Law Tail",
+              f"Community-Size Distribution: {len(size_arr):,} Communities, Power-Law Tail",
               "Community (ranked by size)", "Members (log scale)")
     fig.tight_layout()
     _save(fig, "rq1_community_sizes.png")
@@ -426,7 +416,7 @@ def fig_rq1_community_metagraph(ca: pl.DataFrame):
     """
     TOP_N = 25
 
-    # Top-N communities by membership, sorted descending — deterministic
+    # Top-N communities by membership, sorted descending (deterministic)
     size_df = (
         ca.group_by("community_id")
           .agg(pl.len().alias("size"))
@@ -502,9 +492,7 @@ def fig_rq1_community_metagraph(ca: pl.DataFrame):
     _save(fig, "rq1_community_metagraph.png")
 
 
-# =============================================================================
-# RQ2 FIGURES
-# =============================================================================
+# RQ2 figures
 
 def fig_rq2_roc_curves(y_test, xgb_prob, lr_prob, rf_prob):
     from sklearn.metrics import roc_curve, auc
@@ -641,7 +629,7 @@ def fig_rq2_feature_funnel():
     n_nulls = n_total - n_kept               # 12
 
     assert n_total == 13 and n_nulls == 12, (
-        f"Funnel count mismatch: n_total={n_total}, n_nulls={n_nulls} — "
+        f"Funnel count mismatch: n_total={n_total}, n_nulls={n_nulls}, "
         "re-check rq2_feature_disposition.json vs THRESHOLD §10.6"
     )
 
@@ -672,12 +660,12 @@ def fig_rq2_feature_funnel():
 
     fig, ax = plt.subplots(figsize=(10, 4.5))
 
-    # Stage 1 — all evaluated (y=2, full width=n_total)
+    # Stage 1: all evaluated (y=2, full width=n_total)
     ax.barh(2, n_total, color=BLUE, alpha=0.22, height=0.55, left=0)
     ax.text(n_total / 2, 2, f"{n_total}  Candidates Evaluated",
             ha="center", va="center", fontsize=11, fontweight="bold")
 
-    # Stage 2 — reasoned nulls (y=1), stacked by disposition type, width=n_nulls
+    # Stage 2: reasoned nulls (y=1), stacked by disposition type, width=n_nulls
     left_offset = 0
     for dtype in types_order:
         cnt = disp_counts.get(dtype, 0)
@@ -691,7 +679,7 @@ def fig_rq2_feature_funnel():
     ax.text(n_nulls / 2, 0.67, f"{n_nulls}  Documented Reasoned Nulls",
             ha="center", va="bottom", fontsize=10)
 
-    # Stage 3 — retained (y=0, width=n_kept=1, label outside bar)
+    # Stage 3: retained (y=0, width=n_kept=1, label outside bar)
     ax.barh(0, n_kept, color=GREEN, alpha=0.9, height=0.55, left=0)
     ax.text(n_kept + 0.3, 0, "1  Retained:  contract_value_log",
             ha="left", va="center", fontsize=10, fontweight="bold", color=GREEN)
@@ -723,9 +711,7 @@ def fig_rq2_feature_funnel():
     _save(fig, "rq2_feature_funnel.png")
 
 
-# =============================================================================
-# RQ3 FIGURES
-# =============================================================================
+# RQ3 figures
 
 def fig_rq3_pred_vs_actual(flags: pl.DataFrame):
     """Predicted vs actual log-price with R² and RMSE annotated."""
@@ -826,15 +812,13 @@ def fig_rq3_cpv_anomaly_rate(flags: pl.DataFrame):
     ax.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1.0, decimals=0))
     ax.legend(fontsize=10)
     _style_ax(ax,
-              "Construction Contracts Flag at 25.4% — Vs Medical 3.9% and IT 2.7%",
+              "Construction Contracts Flag at 25.4%, Vs Medical 3.9% and IT 2.7%",
               "CPV Family", "Consensus Anomaly Rate")
     fig.tight_layout()
     _save(fig, "rq3_cpv_anomaly_rate.png")
 
 
-# =============================================================================
-# CROSS-RQ FIGURES
-# =============================================================================
+# Cross-RQ figures
 
 def fig_cross_dependency_vs_risk(join: pl.DataFrame):
     """Scatter of buyer_dependency_normalized vs ensemble_risk_prob with regression line.
@@ -858,7 +842,7 @@ def fig_cross_dependency_vs_risk(join: pl.DataFrame):
     # Regression line (refitted on the correct variable pair)
     m, b = np.polyfit(dep, risk, 1)
     xl = np.linspace(dep.min(), dep.max(), 100)
-    # r value shown only in corner text box below — not duplicated in legend
+    # r value shown only in corner text box below, not duplicated in legend
     ax.plot(xl, m * xl + b, color=ACCENT, linewidth=2.5)
     ax.text(0.97, 0.97,
             f"r = {DEPENDENCY_RISK_R:.3f}\n"
@@ -908,7 +892,7 @@ def fig_cross_community_risk_heatmap(join: pl.DataFrame):
     ax1.set_xticks(x)
     ax1.set_xticklabels(comm_ids, rotation=90, fontsize=7)
     ax1.set_title(
-        f"Top-{top_n} Communities by Mean Risk — {N_COMMUNITIES_TESTED} Communities with ≥10 Contracts Tested",
+        f"Top-{top_n} Communities by Mean Risk: {N_COMMUNITIES_TESTED} Communities with ≥10 Contracts Tested",
         fontsize=TITLE_SIZE, fontweight="bold"
     )
     lines1, labs1 = ax1.get_legend_handles_labels()
@@ -961,9 +945,7 @@ def fig_cross_anova_boxplot(join: pl.DataFrame, eta_sq: float, cramer_v: float):
     _save(fig, "cross_anova_boxplot.png")
 
 
-# =============================================================================
-# EFFECT SIZES
-# =============================================================================
+# Effect sizes
 
 def compute_effect_sizes(join: pl.DataFrame) -> tuple[float, float]:
     """
@@ -1012,9 +994,7 @@ def compute_effect_sizes(join: pl.DataFrame) -> tuple[float, float]:
     return eta_sq, cramer_v
 
 
-# =============================================================================
-# SUPERVISOR-REQUESTED FIGURES (A–D)
-# =============================================================================
+# Supervisor-requested figures (A-D)
 
 def fig_audit_status_matrix():
     """
@@ -1113,7 +1093,7 @@ def fig_audit_status_matrix():
     # Headline annotation
     ax.set_title(
         f"Three-RQ Leakage Audit: {n_pass} PASS   {n_fail} FAIL   {n_warn} WARN\n"
-        f"Source: {audit_path.name}  |  VERDICT: PASS — No confirmed leakage",
+        f"Source: {audit_path.name}  |  VERDICT: PASS, no confirmed leakage",
         fontsize=TITLE_SIZE, fontweight="bold", pad=10
     )
     fig.tight_layout()
@@ -1126,7 +1106,7 @@ def fig_temporal_split_timeline():
     Operating threshold annotation (argmax-F1 frozen on VAL, applied to TEST).
     Operating threshold read from locked JSON (no hardcoded value).
     """
-    # Structural split years (not thresholds — same constants used in _run_rq2_predict_only)
+    # Structural split years (not thresholds, same constants used in _run_rq2_predict_only)
     TRAIN_START, TRAIN_END = 2014, 2018
     VAL_YEAR               = 2019
     TEST_YEAR              = 2020
@@ -1151,7 +1131,7 @@ def fig_temporal_split_timeline():
     ax.barh(0, test_w,  left=test_x,  height=bar_h, color=ORANGE, alpha=0.80)
 
     # Band labels
-    ax.text(train_x + train_w / 2, 0, f"TRAIN  {TRAIN_START}–{TRAIN_END}\n(5 years)",
+    ax.text(train_x + train_w / 2, 0, f"TRAIN  {TRAIN_START}-{TRAIN_END}\n(5 years)",
             ha="center", va="center", fontsize=12, fontweight="bold", color="white")
     ax.text(val_x + val_w / 2, 0, f"VAL\n{VAL_YEAR}",
             ha="center", va="center", fontsize=11, fontweight="bold", color="white")
@@ -1181,7 +1161,7 @@ def fig_temporal_split_timeline():
     )
 
     ax.set_title(
-        "Temporal Train/Val/Test Split — Threshold Frozen at VAL Argmax-F1",
+        "Temporal Train/Val/Test Split: Threshold Frozen at VAL Argmax-F1",
         fontsize=TITLE_SIZE, fontweight="bold", pad=10
     )
     ax.set_xlabel("Year", fontsize=LABEL_SIZE)
@@ -1207,7 +1187,7 @@ def fig_amendments_regional_concentration():
     n_zero        = (df["contract_amendments"] == 0).sum()
     zero_amend_rate = n_zero / n_total   # ~0.9998
 
-    # Sub-national NUTS codes only (exclude national 'IT' — 600k contracts, 0.0% rate)
+    # Sub-national NUTS codes only (exclude national 'IT': 600k contracts, 0.0% rate)
     sub = (
         df.filter(pl.col("buyer_region") != "IT")
           .group_by("buyer_region")
@@ -1238,15 +1218,15 @@ def fig_amendments_regional_concentration():
     # Highlight ITH5 label in legend
     import matplotlib.patches as _mp
     legend_handles = [
-        _mp.Patch(color=RED,  alpha=0.85, label="ITH5 (59.1%; n=88 — small sample, procedural-recording artifact)"),
+        _mp.Patch(color=RED,  alpha=0.85, label="ITH5 (59.1%; n=88, small sample, procedural-recording artifact)"),
         _mp.Patch(color=BLUE, alpha=0.85, label="Other sub-national NUTS codes"),
     ]
     ax.legend(handles=legend_handles, fontsize=9, loc="upper right")
 
-    # Overall zero-amendment annotation — use 2dp to avoid spurious "100.0%" rounding
+    # Overall zero-amendment annotation: use 2dp to avoid spurious "100.0%" rounding
     ax.text(0.02, 0.96,
             f"Overall zero-amendment rate: {zero_amend_rate:.2%}\n"
-            "(national IT code: 600,235 contracts, 0.0% rate — excluded from chart)",
+            "(national IT code: 600,235 contracts, 0.0% rate, excluded from chart)",
             transform=ax.transAxes, fontsize=8.5, va="top",
             bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.85))
 
@@ -1259,7 +1239,7 @@ def fig_amendments_regional_concentration():
     ax.spines["right"].set_visible(False)
     ax.set_title(
         "Amendment Rate by Buyer Region (Sub-national NUTS): ITH5 Elevated at 59.1%\n"
-        "Procedural-recording practice variation — NOT a corruption finding",
+        "Procedural-recording practice variation, NOT a corruption finding",
         fontsize=TITLE_SIZE, fontweight="bold"
     )
     fig.tight_layout()
@@ -1269,7 +1249,7 @@ def fig_amendments_regional_concentration():
 def fig_rq2_calibration_curve(y_test, xgb_prob):
     """
     XGBoost reliability diagram (calibration curve) on 2020 TEST split.
-    Piggybacks _run_rq2_predict_only() — no model refit.
+    Piggybacks _run_rq2_predict_only(); no model refit.
     Diagonal = perfect calibration.  n_bins=10.
     """
     from sklearn.calibration import calibration_curve
@@ -1298,7 +1278,7 @@ def fig_rq2_calibration_curve(y_test, xgb_prob):
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.set_title(
-        "XGBoost Reliability Diagram — 2020 TEST Hold-Out\n"
+        "XGBoost Reliability Diagram: 2020 TEST Hold-Out\n"
         "(diagonal = perfect calibration; model overshoots at mid-range)",
         fontsize=TITLE_SIZE, fontweight="bold"
     )
@@ -1306,9 +1286,7 @@ def fig_rq2_calibration_curve(y_test, xgb_prob):
     _save(fig, "rq2_calibration_curve.png")
 
 
-# =============================================================================
-# NUMERIC GUARD
-# =============================================================================
+# Numeric guard
 
 def run_numeric_guard():
     print("\nNUMERIC GUARD:")
@@ -1338,13 +1316,11 @@ def run_numeric_guard():
     if ok:
         print("  ALL GUARDS PASSED")
     else:
-        raise RuntimeError("NUMERIC GUARD FAILED — review output above")
+        raise RuntimeError("NUMERIC GUARD FAILED: review output above")
     return ok
 
 
-# =============================================================================
-# MAIN
-# =============================================================================
+# Main
 
 def main():
     print("=== PGI Figure Backbone ===")
@@ -1400,7 +1376,7 @@ def main():
         try:
             fn(*args)
         except Exception as exc:
-            msg = f"WARNING: {fn.__name__} failed — {type(exc).__name__}: {exc}"
+            msg = f"WARNING: {fn.__name__} failed, {type(exc).__name__}: {exc}"
             print(f"  {msg}")
             _warnings.append(msg)
 
@@ -1424,7 +1400,7 @@ def main():
     if pdp_path.exists():
         print(f"  confirmed: rq2_value_only_pdp.png ({pdp_path.stat().st_size:,} bytes)")
     else:
-        print("  WARNING: rq2_value_only_pdp.png missing — regenerate via make rq2")
+        print("  WARNING: rq2_value_only_pdp.png missing, regenerate via make rq2")
         _warnings.append("rq2_value_only_pdp.png missing")
 
     print("\nRQ3 figures...")
@@ -1439,7 +1415,7 @@ def main():
     if scatter_path.exists():
         print(f"  confirmed: rq3_anomaly_scatter.png ({scatter_path.stat().st_size:,} bytes)")
     else:
-        print("  WARNING: rq3_anomaly_scatter.png missing — regenerate via make rq3")
+        print("  WARNING: rq3_anomaly_scatter.png missing, regenerate via make rq3")
         _warnings.append("rq3_anomaly_scatter.png missing")
 
     print("\nCross-RQ figures...")
@@ -1469,7 +1445,7 @@ def main():
     print(f"   Canonical set: {', '.join(canonical)}")
     if _warnings:
         print(f"   Skipped ({len(_warnings)}): {'; '.join(_warnings)}")
-    print(f"2. Guard: Q={Q_LOCKED:.4f}  XGB_AUC={XGB_AUC_LOCKED:.4f}  PR-AUC={RQ2_METRICS['test_headline']['pr_auc']:.4f}  R2={R2_CV_LOCKED:.4f}  r_dep_risk={DEPENDENCY_RISK_R:.4f} — all within tolerance")
+    print(f"2. Guard: Q={Q_LOCKED:.4f}  XGB_AUC={XGB_AUC_LOCKED:.4f}  PR-AUC={RQ2_METRICS['test_headline']['pr_auc']:.4f}  R2={R2_CV_LOCKED:.4f}  r_dep_risk={DEPENDENCY_RISK_R:.4f}, all within tolerance")
     print(f"3. Effect sizes: eta^2={eta_sq:.4f}  Cramer's V={cramer_v:.4f}")
     print(f"4. Per-model RQ2 probs rebuilt via guarded predict-only rerun (locked seed=42, n_jobs=1)")
 
