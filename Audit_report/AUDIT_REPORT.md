@@ -3,17 +3,17 @@
 **Project:** Procurement Governance Intelligence (MSc AI Thesis)  
 **Auditor:** Automated Production-Grade QA & Release Readiness Review  
 **Date:** 2026-06-04T16:25:00+01:00  
-**Scope:** Full repository — source code, tests, configs, dependencies, data handling, file hygiene  
+**Scope:** Full repository: source code, tests, configs, dependencies, data handling, file hygiene  
 **Audit Batch:** `audit_20260602_192731` (archival) + `20260604` (report)
 
 ---
 
 ## 1. Executive Summary
 
-- **Overall status:** [WARN] NOT RELEASE-READY — 3 Critical, 10 High, 16 Medium, 12 Low issues found
-- **Release readiness:** **FAIL** — The pipeline runner (`run_full_pipeline.py`) crashes on import due to a function name mismatch. A syntax error in `phase1_eda.py` prevents that script from completing. Multiple hardcoded relative paths in SQL queries make the feature engineering module CWD-dependent.
+- **Overall status:** [WARN] NOT RELEASE-READY: 3 Critical, 10 High, 16 Medium, 12 Low issues found
+- **Release readiness:** **FAIL**. The pipeline runner (`run_full_pipeline.py`) crashes on import due to a function name mismatch. A syntax error in `phase1_eda.py` prevents that script from completing. Multiple hardcoded relative paths in SQL queries make the feature engineering module CWD-dependent.
 - **Primary risks:**
-  1. **Pipeline cannot execute end-to-end** — `run_rq3` import fails (`ImportError`)
+  1. **Pipeline cannot execute end-to-end**: `run_rq3` import fails (`ImportError`)
   2. **Hardcoded relative paths in DuckDB SQL** break execution from any CWD other than project root
   3. **Validation/test year overlap** creates subtle data leakage in RQ2 model evaluation
   4. **Two missing pip dependencies** (`numpy`, `python-pptx`) not declared in `requirements.txt`
@@ -33,37 +33,37 @@ The codebase demonstrates solid architectural decisions:
 
 ## 2. Critical Findings
 
-### CRIT-01: `run_full_pipeline.py` — ImportError crashes pipeline
+### CRIT-01: `run_full_pipeline.py`: ImportError crashes pipeline
 
 - **ID:** CRIT-01
 - **Severity:** Critical
 - **File:** [run_full_pipeline.py](file:///Users/shreyas/Shreyas/NCI_Sub/Sem%202/Practicum/Project_Main/run_full_pipeline.py#L9)
 - **Location:** Line 9
-- **Problem:** `from src.rq3_price_intelligence.rq3_pricing import run_rq3` — but the function is named `run_rq3_pricing()` (defined at [rq3_pricing.py:L20](file:///Users/shreyas/Shreyas/NCI_Sub/Sem%202/Practicum/Project_Main/src/rq3_price_intelligence/rq3_pricing.py#L20)). The name `run_rq3` does not exist in that module.
+- **Problem:** `from src.rq3_price_intelligence.rq3_pricing import run_rq3`, but the function is named `run_rq3_pricing()` (defined at [rq3_pricing.py:L20](file:///Users/shreyas/Shreyas/NCI_Sub/Sem%202/Practicum/Project_Main/src/rq3_price_intelligence/rq3_pricing.py#L20)). The name `run_rq3` does not exist in that module.
 - **Impact:** The full pipeline runner crashes immediately with `ImportError: cannot import name 'run_rq3'`. No phase executes. `make all` is broken.
 - **Fix:** Either rename the function in `rq3_pricing.py` to `run_rq3`, or change the import in `run_full_pipeline.py` to `from src.rq3_price_intelligence.rq3_pricing import run_rq3_pricing as run_rq3`.
 
 ---
 
-### CRIT-02: `phase1_eda.py` — Syntax error prevents execution
+### CRIT-02: `phase1_eda.py`: Syntax error prevents execution
 
 - **ID:** CRIT-02
 - **Severity:** Critical
 - **File:** `phase1_eda.py` (archived, but still present in older checkouts)
 - **Location:** Line 436
-- **Problem:** `skipped = 10 len(generated)` — missing the minus operator (`-`). Python interprets this as calling integer `10` as a function on `len(generated)`, producing `TypeError: 'int' object is not callable`.
+- **Problem:** `skipped = 10 len(generated)`, missing the minus operator (`-`). Python interprets this as calling integer `10` as a function on `len(generated)`, producing `TypeError: 'int' object is not callable`.
 - **Impact:** Script crashes after generating all plots, before writing the summary. The `eda_summary.json` file is never written, which breaks `phase2_ppt.py`.
 - **Fix:** Change to `skipped = 10 - len(generated)`.
 
 ---
 
-### CRIT-03: `src/data_loader.py` — Broken import (dead file)
+### CRIT-03: `src/data_loader.py`: Broken import (dead file)
 
 - **ID:** CRIT-03
 - **Severity:** Critical (now resolved)
-- **File:** `src/data_loader.py` → **ARCHIVED** to `archive/audit_20260602_192731/data_loader_20260602_192731.py`
+- **File:** `src/data_loader.py`, **ARCHIVED** to `archive/audit_20260602_192731/data_loader_20260602_192731.py`
 - **Location:** Line 6
-- **Problem:** `from src.config import (...)` — the module `src.config` does not exist. The actual config module is `src.core.config`. This file is an exact duplicate of `src/core/data_loader.py` except for the broken import.
+- **Problem:** `from src.config import (...)`: the module `src.config` does not exist. The actual config module is `src.core.config`. This file is an exact duplicate of `src/core/data_loader.py` except for the broken import.
 - **Impact:** Any code importing from `src.data_loader` crashes with `ModuleNotFoundError`. Nothing in the active codebase imports this file, confirming it is dead code.
 - **Fix:** [PASS] Archived on 2026-06-02. No further action needed.
 
@@ -86,7 +86,7 @@ The codebase demonstrates solid architectural decisions:
 - **ID:** HIGH-02
 - **Severity:** High
 - **File:** [config.py](file:///Users/shreyas/Shreyas/NCI_Sub/Sem%202/Practicum/Project_Main/src/core/config.py#L40-L42)
-- **Location:** Lines 40–42
+- **Location:** Lines 40-42
 - **Problem:**
   ```python
   TRAIN_YEARS = range(2014, 2019)   # 2014-2018
@@ -105,7 +105,7 @@ The codebase demonstrates solid architectural decisions:
 - **Severity:** High
 - **File:** [rq1_network.py](file:///Users/shreyas/Shreyas/NCI_Sub/Sem%202/Practicum/Project_Main/src/rq1_supplier_network/rq1_network.py#L84)
 - **Location:** Line 84
-- **Problem:** `closeness = degree` — the variable `closeness` is set equal to the `degree_centrality` dict, not computed via `nx.closeness_centrality()`. The resulting `closeness_centrality` column in output parquet files stores degree centrality values.
+- **Problem:** `closeness = degree`: the variable `closeness` is set equal to the `degree_centrality` dict, not computed via `nx.closeness_centrality()`. The resulting `closeness_centrality` column in output parquet files stores degree centrality values.
 - **Impact:** The `closeness_centrality` column in `rq1_network_metrics.parquet` is mislabeled. Any thesis text or analysis referencing closeness centrality numbers is reporting degree centrality instead. This is a **thesis correctness issue**.
 - **Fix:** Either compute actual closeness centrality (`closeness = nx.closeness_centrality(self.G)`) or rename the column to indicate it's a placeholder/alias.
 
@@ -116,31 +116,31 @@ The codebase demonstrates solid architectural decisions:
 - **ID:** HIGH-04
 - **Severity:** High
 - **File:** [config.py](file:///Users/shreyas/Shreyas/NCI_Sub/Sem%202/Practicum/Project_Main/src/core/config.py#L6-L17)
-- **Location:** Lines 6–17
+- **Location:** Lines 6-17
 - **Problem:** Monkey-patches `dataclasses._add_slots` using `exec()` on dynamically modified source code to work around a Python 3.14.1 bug. This accesses private stdlib internals.
 - **Impact:** Fragile across Python versions. The `exec()` call is a security concern in production code and a maintenance hazard. If the internal API changes, the patch silently fails (try/except catches everything).
 - **Fix:** Pin the Python version in `pyproject.toml` and remove the monkey-patch once the stdlib bug is fixed upstream, or guard it with a version check.
 
 ---
 
-### HIGH-05: `phase1_eda.py` — NULL column names injected into SQL
+### HIGH-05: `phase1_eda.py`: NULL column names injected into SQL
 
 - **ID:** HIGH-05
 - **Severity:** High
 - **File:** `phase1_eda.py` (archived)
-- **Location:** Lines 94–106
+- **Location:** Lines 94-106
 - **Problem:** If `pick()` returns `None` for `COL_PROC`, `COL_BIDS`, `COL_SUPPLIER`, `COL_BUYER`, or `COL_CPV`, the SQL base table creation injects literal string `"None"` as column names, causing DuckDB `BinderException`.
 - **Impact:** Crashes when running on datasets where expected columns are absent.
 - **Fix:** Guard each column reference with an `IS NOT NULL` check or skip the base table creation if critical columns are missing.
 
 ---
 
-### HIGH-06: `phase2_ppt.py` — Hardcoded KPI values on slides
+### HIGH-06: `phase2_ppt.py`: Hardcoded KPI values on slides
 
 - **ID:** HIGH-06
 - **Severity:** High
 - **File:** `phase2_ppt.py` (archived)
-- **Location:** Lines 161–166, 200–203
+- **Location:** Lines 161-166, 200-203
 - **Problem:** KPI cards display hardcoded values like `"99.997%"`, `"126"` columns, `"82,346"` buyers, `"50.3%"` above HHI 0.50. These are baked into the PPTX generator, not derived from actual data at runtime.
 - **Impact:** If the dataset or filtering changes, the presentation shows stale/incorrect numbers. Thesis examiner could notice discrepancies.
 - **Fix:** Compute these values from the `eda_summary.json` or directly from DuckDB queries.
@@ -153,7 +153,7 @@ The codebase demonstrates solid architectural decisions:
 - **Severity:** High
 - **File:** [app.py](file:///Users/shreyas/Shreyas/NCI_Sub/Sem%202/Practicum/Project_Main/src/dashboard/app.py#L11)
 - **Location:** Line 11
-- **Problem:** `ROOT = Path(__file__).resolve().parent.parent` — from `src/dashboard/app.py`, this resolves to `src/`, not the project root. Line 46: `base = ROOT / "data" / "results"` becomes `src/data/results` which doesn't exist.
+- **Problem:** `ROOT = Path(__file__).resolve().parent.parent` resolves to `src/` from `src/dashboard/app.py`, not the project root. Line 46: `base = ROOT / "data" / "results"` becomes `src/data/results` which doesn't exist.
 - **Impact:** The dashboard will crash with `FileNotFoundError` when loading parquet files, unless Streamlit's CWD happens to compensate. Works accidentally when `streamlit run` is invoked from project root because `sys.path.insert(0, str(ROOT))` adds `src/` and data paths are resolved relative to CWD.
 - **Fix:** Use `ROOT = Path(__file__).resolve().parent.parent.parent` (3 levels up from `dashboard/app.py` to project root).
 
@@ -165,7 +165,7 @@ The codebase demonstrates solid architectural decisions:
 - **Severity:** High
 - **File:** `Makefile` (archived/removed)
 - **Location:** Line 42
-- **Problem:** `$(PYTHON) -m streamlit run src/dashboard/app.py` — the `-m` flag with `streamlit run` is incorrect. It should be `$(PYTHON) -m streamlit run src/dashboard/app.py` (which actually works because `-m streamlit` invokes the streamlit module, and `run` is its subcommand). However, mixing `.venv/bin/python -m streamlit run` with relative paths is fragile.
+- **Problem:** `$(PYTHON) -m streamlit run src/dashboard/app.py`: the `-m` flag with `streamlit run` is incorrect. It should be `$(PYTHON) -m streamlit run src/dashboard/app.py` (which actually works because `-m streamlit` invokes the streamlit module, and `run` is its subcommand). However, mixing `.venv/bin/python -m streamlit run` with relative paths is fragile.
 - **Impact:** May fail depending on shell/env configuration.
 - **Fix:** Use `streamlit run src/dashboard/app.py` directly, or ensure the venv is activated.
 
@@ -177,7 +177,7 @@ The codebase demonstrates solid architectural decisions:
 - **Severity:** High
 - **File:** `Makefile` (archived/removed)
 - **Location:** Line 48
-- **Problem:** `$(PYTHON) scripts/strip_comments.py` — the `scripts/` directory does not exist in the repository. This target will always fail.
+- **Problem:** `$(PYTHON) scripts/strip_comments.py`: the `scripts/` directory does not exist in the repository. This target will always fail.
 - **Impact:** `make strip` crashes.
 - **Fix:** Remove the target or create the script.
 
@@ -188,14 +188,14 @@ The codebase demonstrates solid architectural decisions:
 - **ID:** HIGH-10
 - **Severity:** High
 - **File:** [rq2_governance.py](file:///Users/shreyas/Shreyas/NCI_Sub/Sem%202/Practicum/Project_Main/src/rq2_governance_risk/rq2_governance.py#L174-L179)
-- **Location:** Lines 174–179
+- **Location:** Lines 174-179
 - **Problem:** The fallback branch `return np.eye(len(classes))[pred]` will raise `IndexError` if `pred` contains values outside `[0, len(classes)-1]` (e.g., if a multiclass model predicts class label `2` but only classes `{0, 1}` are in `np.unique(pred)`).
 - **Impact:** Silent crash during ensemble prediction if the fallback model produces unexpected class labels.
 - **Fix:** Use `np.eye(max(pred)+1)[pred]` or map predictions to contiguous indices.
 
 ---
 
-### MED-01: `rq2_governance.py` — "single_bid_rate" is mislabeled
+### MED-01: `rq2_governance.py`: "single_bid_rate" is mislabeled
 
 - **ID:** MED-01
 - **Severity:** Medium
@@ -225,9 +225,9 @@ The codebase demonstrates solid architectural decisions:
 - **Severity:** Medium
 - **File:** [rq3_pricing.py](file:///Users/shreyas/Shreyas/NCI_Sub/Sem%202/Practicum/Project_Main/src/rq3_price_intelligence/rq3_pricing.py#L53) and [charts.py](file:///Users/shreyas/Shreyas/NCI_Sub/Sem%202/Practicum/Project_Main/src/dashboard/components/charts.py#L339)
 - **Location:** rq3_pricing.py:53, charts.py:339
-- **Problem:** `rq3_pricing.py` produces `anomaly_score ∈ {0.0, 0.7, 1.0}`, but the dashboard chart label says "Anomaly Score (0–3)".
+- **Problem:** `rq3_pricing.py` produces `anomaly_score ∈ {0.0, 0.7, 1.0}`, but the dashboard chart label says "Anomaly Score (0-3)".
 - **Impact:** Users see a misleading axis label on the anomaly score distribution chart.
-- **Fix:** Change dashboard label to "Anomaly Score (0–1)" or revise the scoring to use the `flag_count` (0–3) directly.
+- **Fix:** Change dashboard label to "Anomaly Score (0-1)" or revise the scoring to use the `flag_count` (0-3) directly.
 
 ---
 
@@ -236,7 +236,7 @@ The codebase demonstrates solid architectural decisions:
 - **ID:** MED-04
 - **Severity:** Medium
 - **File:** [data_loader.py](file:///Users/shreyas/Shreyas/NCI_Sub/Sem%202/Practicum/Project_Main/src/core/data_loader.py#L81-L82)
-- **Location:** Lines 81–82
+- **Location:** Lines 81-82
 - **Problem:** Both `contract_value` and `final_price` use the exact same COALESCE expression. They are always identical.
 - **Impact:** Wastes memory, creates confusion about which column to use, and suggests they should differ (estimated vs final price). `rq3_pricing.py` uses `final_price` while other modules use `contract_value`.
 - **Fix:** Keep one column or differentiate their semantics (e.g., use `tender_estimatedpriceUsd` for `estimated_price` only).
@@ -249,7 +249,7 @@ The codebase demonstrates solid architectural decisions:
 - **Severity:** Medium
 - **File:** [feature_engineering.py](file:///Users/shreyas/Shreyas/NCI_Sub/Sem%202/Practicum/Project_Main/src/core/feature_engineering.py#L1)
 - **Location:** Line 1
-- **Problem:** `import argparse` — never referenced anywhere in the file.
+- **Problem:** `import argparse`, never referenced anywhere in the file.
 - **Impact:** Dead import. Suggests incomplete refactoring (CLI args were planned but not implemented).
 - **Fix:** Remove the import.
 
@@ -284,7 +284,7 @@ The codebase demonstrates solid architectural decisions:
 - **Severity:** Medium
 - **File:** `phase2_ppt.py` (archived)
 - **Location:** Line 110
-- **Problem:** `Image.open(full).size` — the Image object is never closed, leaking a file handle per plot.
+- **Problem:** `Image.open(full).size`: the Image object is never closed, leaking a file handle per plot.
 - **Impact:** Resource leak proportional to number of plots embedded.
 - **Fix:** `with Image.open(full) as img: iw, ih = img.size`.
 
@@ -295,20 +295,20 @@ The codebase demonstrates solid architectural decisions:
 - **ID:** MED-09
 - **Severity:** Medium
 - **File:** [generate_charts.py](file:///Users/shreyas/Shreyas/NCI_Sub/Sem%202/Practicum/Project_Main/src/eda/visualizations/generate_charts.py#L81-L82)
-- **Location:** Lines 81–82
-- **Problem:** `Path.home() / ".cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node"` — CI-specific path hardcoded into production code.
+- **Location:** Lines 81-82
+- **Problem:** `Path.home() / ".cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node"`: CI-specific path hardcoded into production code.
 - **Impact:** Unnecessary code path in deployed code; confusing for anyone reading the source.
 - **Fix:** Remove or move to an env var like `PLAYWRIGHT_NODE_PATH`.
 
 ---
 
-### MED-10: `generate_charts.py` — wrong "Total Contracts Loaded" formula
+### MED-10: `generate_charts.py`: wrong "Total Contracts Loaded" formula
 
 - **ID:** MED-10
 - **Severity:** Medium
 - **File:** [generate_charts.py](file:///Users/shreyas/Shreyas/NCI_Sub/Sem%202/Practicum/Project_Main/src/eda/visualizations/generate_charts.py#L464)
 - **Location:** Line 464
-- **Problem:** `df_contracts.height + df_nulls['null_rate'].max() * df_contracts.height` — this formula attempts to estimate the raw count by inflating the cleaned count by the maximum null rate, which is mathematically nonsensical.
+- **Problem:** `df_contracts.height + df_nulls['null_rate'].max() * df_contracts.height`: this formula attempts to estimate the raw count by inflating the cleaned count by the maximum null rate, which is mathematically nonsensical.
 - **Impact:** The "Total Contracts Loaded" number on the summary statistics table is incorrect.
 - **Fix:** Use the actual raw contract count from the data loader or config.
 
@@ -320,7 +320,7 @@ The codebase demonstrates solid architectural decisions:
 - **Severity:** Medium
 - **File:** All 4 dashboard page files
 - **Location:** Line 12 in each
-- **Problem:** `ROOT = Path(__file__).resolve().parent.parent.parent` — goes from `src/dashboard/pages/` up to `src/`. Data paths reference `ROOT / "data" / "results"` which becomes `src/data/results`.
+- **Problem:** `ROOT = Path(__file__).resolve().parent.parent.parent` goes from `src/dashboard/pages/` up to `src/`. Data paths reference `ROOT / "data" / "results"` which becomes `src/data/results`.
 - **Impact:** Same CWD-dependency issue as HIGH-07. Works only when Streamlit is invoked from project root.
 - **Fix:** Navigate to actual project root (4 levels up: `parent.parent.parent.parent`).
 
@@ -331,7 +331,7 @@ The codebase demonstrates solid architectural decisions:
 - **ID:** MED-12
 - **Severity:** Medium
 - **File:** [run_full_pipeline.py](file:///Users/shreyas/Shreyas/NCI_Sub/Sem%202/Practicum/Project_Main/run_full_pipeline.py#L23-L27)
-- **Location:** Lines 23–27
+- **Location:** Lines 23-27
 - **Problem:** The pipeline iterates through phases with no try/except. If any phase crashes, subsequent phases are skipped with no cleanup, partial results, or error reporting.
 - **Impact:** Partial pipeline failures leave data in inconsistent state with no diagnostic output.
 - **Fix:** Wrap each phase in try/except, log the error, and decide whether to continue or abort.
@@ -343,7 +343,7 @@ The codebase demonstrates solid architectural decisions:
 - **ID:** MED-13
 - **Severity:** Medium
 - **File:** [rq1_network.py](file:///Users/shreyas/Shreyas/NCI_Sub/Sem%202/Practicum/Project_Main/src/rq1_supplier_network/rq1_network.py#L234-L239)
-- **Location:** Lines 234–239
+- **Location:** Lines 234-239
 - **Problem:** `_safe_corr` duplicates `src.common.evaluation.safe_corr` but uses `np.corrcoef` instead of `scipy.stats.pearsonr`. Behavior is subtly different (p-value not computed).
 - **Impact:** Two correlation implementations with slightly different behavior creates maintenance risk and inconsistent results.
 - **Fix:** Use `from src.common.evaluation import safe_corr` everywhere.
@@ -356,7 +356,7 @@ The codebase demonstrates solid architectural decisions:
 - **Severity:** Medium
 - **File:** [feature_engineering.py](file:///Users/shreyas/Shreyas/NCI_Sub/Sem%202/Practicum/Project_Main/src/core/feature_engineering.py#L130)
 - **Location:** Line 130
-- **Problem:** `labels.head(min(1000, rq2.height))` — samples only the first 1000 rows for `rq2_labels.csv` without explanation. This is not a random sample — it's the first 1000 rows in whatever order Polars returns.
+- **Problem:** `labels.head(min(1000, rq2.height))` samples only the first 1000 rows for `rq2_labels.csv` without explanation. This is not a random sample; it's the first 1000 rows in whatever order Polars returns.
 - **Impact:** If `rq2_labels.csv` is used for anything downstream, it's a biased sample.
 - **Fix:** Document the purpose of this file or use `sample(n=1000)` for a random sample.
 
@@ -368,7 +368,7 @@ The codebase demonstrates solid architectural decisions:
 - **Severity:** Medium
 - **File:** [generate_charts.py](file:///Users/shreyas/Shreyas/NCI_Sub/Sem%202/Practicum/Project_Main/src/eda/visualizations/generate_charts.py#L406)
 - **Location:** Line 406
-- **Problem:** `pl.col("cpv_division").cast(pl.Utf8)` — `pl.Utf8` is deprecated in Polars ≥ 0.20; use `pl.String`.
+- **Problem:** `pl.col("cpv_division").cast(pl.Utf8)`: `pl.Utf8` is deprecated in Polars ≥ 0.20; use `pl.String`.
 - **Impact:** Deprecation warning; will break in future Polars versions.
 - **Fix:** Replace `pl.Utf8` with `pl.String`.
 
@@ -397,7 +397,7 @@ The codebase demonstrates solid architectural decisions:
 | LOW-05 | `rq1_network.py` | 173 | `supplier_exit_coverage_loss` name is misleading (inverse of neighbor count) |
 | LOW-06 | `rq1_network.py` | 108 | `tuple[...]` lowercase type hint (Python 3.9+ only) |
 | LOW-07 | `rq2_governance.py` | 154 | Late import of `scipy.stats.pearsonr` inside function |
-| LOW-08 | `rq2_governance.py` | 186–192 | `_auc` silently catches all exceptions, returns 0.0 |
+| LOW-08 | `rq2_governance.py` | 186-192 | `_auc` silently catches all exceptions, returns 0.0 |
 | LOW-09 | `rq3_pricing.py` | 48 | `LocalOutlierFactor` only works with `fit_predict`, cannot score new data |
 | LOW-10 | Various scratch files | Multiple | Dead imports: `pandas as pd` imported but unused |
 | LOW-11 | `_audit/imports.py` | 10 | `sys.stdlib_module_names` requires Python 3.10+ |
@@ -411,9 +411,9 @@ The codebase demonstrates solid architectural decisions:
 
 | Import Name | PyPI Package | Used In | Impact |
 |------------|-------------|---------|--------|
-| `numpy` | `numpy` | 13+ files (rq1, rq2, rq3, integration, utils, charts, phase1, scratch) | **Critical** — numpy is a transitive dep of pandas/polars/sklearn, so it's installed indirectly. But it must be declared explicitly for reproducibility. |
-| `pptx` | `python-pptx` | `phase2_ppt.py` | **High** — `pip install -r requirements.txt` will NOT install python-pptx. Running `phase2_ppt.py` will crash. |
-| `matplotlib` | `matplotlib` | `phase1_eda.py` | **High** — Same issue. Required for phase1 but not declared. |
+| `numpy` | `numpy` | 13+ files (rq1, rq2, rq3, integration, utils, charts, phase1, scratch) | **Critical**: numpy is a transitive dep of pandas/polars/sklearn, so it's installed indirectly, but it must be declared explicitly for reproducibility. |
+| `pptx` | `python-pptx` | `phase2_ppt.py` | **High**: `pip install -r requirements.txt` will NOT install python-pptx. Running `phase2_ppt.py` will crash. |
+| `matplotlib` | `matplotlib` | `phase1_eda.py` | **High**: same issue, required for phase1 but not declared. |
 
 ### Unused packages (in requirements.txt but NOT imported in active code)
 
@@ -424,14 +424,14 @@ The codebase demonstrates solid architectural decisions:
 | `nbconvert>=7.0.0` | Dev tool only | Same |
 | `shap>=0.44.0` | Was likely used earlier, now absent from all code | Remove or re-add if SHAP explanations are needed |
 | `kaleido==0.2.1` | Used indirectly by Plotly `write_image()` | Keep, but add a comment explaining the indirect dependency |
-| `pyarrow>=15.0.0` | Used indirectly by Polars/Pandas for parquet I/O | Keep — runtime transitive dependency |
+| `pyarrow>=15.0.0` | Used indirectly by Polars/Pandas for parquet I/O | Keep, runtime transitive dependency |
 | `pillow>=10.0.0` | Only used in `phase2_ppt.py` | Keep if phase2 is active |
 
 ### Version concerns
 
 | Package | Declared | Concern |
 |---------|----------|---------|
-| `plotly==5.18.0` | Pinned exactly | May conflict with newer Polars/Streamlit — should use `>=5.18.0` |
+| `plotly==5.18.0` | Pinned exactly | May conflict with newer Polars/Streamlit; should use `>=5.18.0` |
 | `kaleido==0.2.1` | Pinned exactly | Known issues on Apple Silicon; `kaleido>=0.2.1` preferred |
 | `polars>=0.20.0` | Min version | `pl.Utf8` deprecated in 0.20+; code uses `pl.Utf8` (see MED-15) |
 
@@ -448,15 +448,15 @@ The codebase demonstrates solid architectural decisions:
 
 | Test File | Tests | What It Covers | Quality |
 |-----------|-------|----------------|---------|
-| `test_data_quality.py` | 3 | Row count, temporal range, no negative prices | [PASS] Good — guards data integrity |
-| `test_feature_engineering.py` | 1 | Existence of 4 feature parquet files | [WARN] Weak — only checks file existence, not content |
-| `test_eda_outputs.py` | 2 | Existence of 20 HTML/PNG/JSON/MD chart artifacts + 6 section reports | [PASS] Good — but will fail if EDA hasn't been run |
-| `test_leakage.py` | 2 | No future supplier features, train/test temporal gap | [PASS] Critical test — depends on `feature_df` fixture loading supplier_behavior_features.parquet |
-| `test_no_target_leakage.py` | 3 | RQ2 features exclude label inputs, classifier features are clean | [PASS] Excellent — guards thesis correctness |
+| `test_data_quality.py` | 3 | Row count, temporal range, no negative prices | [PASS] Good, guards data integrity |
+| `test_feature_engineering.py` | 1 | Existence of 4 feature parquet files | [WARN] Weak, only checks file existence, not content |
+| `test_eda_outputs.py` | 2 | Existence of 20 HTML/PNG/JSON/MD chart artifacts + 6 section reports | [PASS] Good, but will fail if EDA hasn't been run |
+| `test_leakage.py` | 2 | No future supplier features, train/test temporal gap | [PASS] Critical test, depends on `feature_df` fixture loading supplier_behavior_features.parquet |
+| `test_no_target_leakage.py` | 3 | RQ2 features exclude label inputs, classifier features are clean | [PASS] Excellent, guards thesis correctness |
 | `test_rq1_success.py` | 5 | Graph build, centrality distribution, modularity, dependency rate, resilience std | [PASS] Good success criteria tests |
-| `test_rq2_success.py` | 6 | RF F1, XGB AUC, LR AUC, ensemble existence, R_gov correlation, SHAP top features | [PASS] Good — tests thesis acceptance criteria |
+| `test_rq2_success.py` | 6 | RF F1, XGB AUC, LR AUC, ensemble existence, R_gov correlation, SHAP top features | [PASS] Good, tests thesis acceptance criteria |
 | `test_rq3_success.py` | 4 | GB R², RMSE reduction, anomaly rate bounds, LOF-GB overlap | [PASS] Good |
-| `test_integration.py` | 3 | Unified scores exist + bounds, join doesn't inflate rows | [PASS] Excellent — guards against the real-world row explosion bug |
+| `test_integration.py` | 3 | Unified scores exist + bounds, join doesn't inflate rows | [PASS] Excellent, guards against the real-world row explosion bug |
 
 ### Missing Test Coverage
 
@@ -473,9 +473,9 @@ The codebase demonstrates solid architectural decisions:
 
 ### Weak Tests
 
-- `test_feature_engineering.py` — only checks file existence, not schema, row count, or value ranges
-- `test_leakage.py:test_no_future_supplier_features` — silently returns on empty DataFrame (line 5–6)
-- `test_leakage.py:test_train_test_temporal_split` — silently returns on empty DataFrame (line 12–13)
+- `test_feature_engineering.py`: only checks file existence, not schema, row count, or value ranges
+- `test_leakage.py:test_no_future_supplier_features`: silently returns on empty DataFrame (line 5-6)
+- `test_leakage.py:test_train_test_temporal_split`: silently returns on empty DataFrame (line 12-13)
 
 ---
 
@@ -500,8 +500,8 @@ The codebase demonstrates solid architectural decisions:
 | `scratch/test_xgb_depth.py` | `archive/audit_20260602_192731/scratch/test_xgb_depth_20260602_192731.py` | Experimental scratch script with dead `StandardScaler` import |
 | `scratch/true_risk_corr.py` | `archive/audit_20260602_192731/scratch/true_risk_corr_20260602_192731.py` | Experimental scratch script |
 | `scratch/tune_xgb.py` | `archive/audit_20260602_192731/scratch/tune_xgb_20260602_192731.py` | Experimental scratch script with dead `pandas` import |
-| `data/processed/*` (8 files) | `archive/audit_20260602_192731/data_processed/` | 100% duplicate of `data/curated/` — identical filenames, near-identical sizes |
-| `_audit/` (8 files) | `archive/audit_20260602_192731/_audit_20260602_192731/` | Previous audit tooling (`bandit.json`, `ruff.json`, `manifest.json`, etc.) — not part of pipeline |
+| `data/processed/*` (8 files) | `archive/audit_20260602_192731/data_processed/` | 100% duplicate of `data/curated/`, identical filenames, near-identical sizes |
+| `_audit/` (8 files) | `archive/audit_20260602_192731/_audit_20260602_192731/` | Previous audit tooling (`bandit.json`, `ruff.json`, `manifest.json`, etc.), not part of pipeline |
 | `Audit_report/` (old) | `archive/audit_20260602_192731/Audit_report_old_20260602_192731/` | Previous audit report from earlier session |
 
 ### Files removed by other operations (between 2026-06-02 and 2026-06-04)
@@ -534,12 +534,12 @@ The codebase demonstrates solid architectural decisions:
 
 ### Reasons for Failure
 
-1. **Pipeline execution blocked** — `run_full_pipeline.py` cannot import `run_rq3` (CRIT-01)
-2. **CWD-dependent SQL paths** — Feature engineering fails when run from non-root directory (HIGH-01)
-3. **Thesis correctness risk** — `closeness_centrality` column reports degree centrality values (HIGH-03)
-4. **Missing dependency declarations** — `numpy`, `python-pptx`, `matplotlib` absent from `requirements.txt`
-5. **Data leakage in temporal split** — VAL_YEARS and TEST_YEARS overlap on 2019 (HIGH-02)
-6. **Dashboard path resolution** — `ROOT` variable points to `src/` not project root (HIGH-07)
+1. **Pipeline execution blocked**: `run_full_pipeline.py` cannot import `run_rq3` (CRIT-01)
+2. **CWD-dependent SQL paths**: feature engineering fails when run from non-root directory (HIGH-01)
+3. **Thesis correctness risk**: `closeness_centrality` column reports degree centrality values (HIGH-03)
+4. **Missing dependency declarations**: `numpy`, `python-pptx`, `matplotlib` absent from `requirements.txt`
+5. **Data leakage in temporal split**: VAL_YEARS and TEST_YEARS overlap on 2019 (HIGH-02)
+6. **Dashboard path resolution**: `ROOT` variable points to `src/` not project root (HIGH-07)
 
 ### What passes
 
@@ -558,7 +558,7 @@ The codebase demonstrates solid architectural decisions:
 
 | Priority | Issue | Action | Effort |
 |----------|-------|--------|--------|
-| P0 | CRIT-01 | Rename `run_rq3_pricing` → `run_rq3` in `rq3_pricing.py` | 1 min |
+| P0 | CRIT-01 | Rename `run_rq3_pricing` to `run_rq3` in `rq3_pricing.py` | 1 min |
 | P0 | HIGH-01 | Replace hardcoded SQL paths with `str(DATA_FEATURES / ...)` f-strings | 15 min |
 | P0 | HIGH-03 | Compute actual `nx.closeness_centrality()` or rename column to `degree_centrality_alias` | 10 min |
 | P0 | HIGH-02 | Fix temporal split: `TEST_YEARS = range(2020, 2021)` | 2 min |
@@ -570,8 +570,8 @@ The codebase demonstrates solid architectural decisions:
 | Priority | Issue | Action | Effort |
 |----------|-------|--------|--------|
 | P1 | HIGH-07 | Fix `ROOT` in `app.py` and all dashboard pages to point to project root | 15 min |
-| P1 | MED-01 | Rename `single_bid_rate` → `negotiated_restricted_rate` in rq2 output | 10 min |
-| P1 | MED-03 | Fix anomaly score label: "0–3" → "0–1" in charts.py | 2 min |
+| P1 | MED-01 | Rename `single_bid_rate` to `negotiated_restricted_rate` in rq2 output | 10 min |
+| P1 | MED-03 | Fix anomaly score label: "0-3" to "0-1" in charts.py | 2 min |
 | P1 | MED-04 | Remove duplicate `final_price` column or differentiate from `contract_value` | 10 min |
 | P1 | MED-12 | Add try/except to pipeline runner phases | 15 min |
 | P1 | MED-13 | Replace `_safe_corr` in rq1 with `from src.common.evaluation import safe_corr` | 5 min |
@@ -677,14 +677,14 @@ pyproject.toml                 # Project metadata + pytest config
 | python-louvain | [PASS] >=0.16 | [PASS] (optional, as `community`) | OK |
 | scikit-learn | [PASS] >=1.4.0 | [PASS] (as `sklearn`) | OK |
 | xgboost | [PASS] >=2.0.0 | [PASS] (optional) | OK |
-| shap | [PASS] >=0.44.0 | [FAIL] | **UNUSED — remove** |
+| shap | [PASS] >=0.44.0 | [FAIL] | **UNUSED, remove** |
 | scipy | [PASS] >=1.12.0 | [PASS] | OK |
 | plotly | [PASS] ==5.18.0 | [PASS] | OK (pin is strict) |
 | kaleido | [PASS] ==0.2.1 | [PASS] (indirect via Plotly) | OK (pin is strict) |
 | streamlit | [PASS] >=1.32.0 | [PASS] | OK |
-| jupyter | [PASS] >=7.0.0 | [FAIL] | Dev only — move to optional |
-| jupyterlab | [PASS] >=3.0.0 | [FAIL] | Dev only — move to optional |
-| nbconvert | [PASS] >=7.0.0 | [FAIL] | Dev only — move to optional |
+| jupyter | [PASS] >=7.0.0 | [FAIL] | Dev only, move to optional |
+| jupyterlab | [PASS] >=3.0.0 | [FAIL] | Dev only, move to optional |
+| nbconvert | [PASS] >=7.0.0 | [FAIL] | Dev only, move to optional |
 | pytest | [PASS] >=8.0.0 | [PASS] | OK |
 | pyarrow | [PASS] >=15.0.0 | [PASS] (indirect via Polars) | OK |
 | pillow | [PASS] >=10.0.0 | [PASS] (as `PIL`) | OK |

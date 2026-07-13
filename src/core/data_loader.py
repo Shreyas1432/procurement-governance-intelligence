@@ -82,7 +82,7 @@ class DataLoader:
                 -- ANAC dataset and does not reflect actual bidder competition.  Using it as the
                 -- primary bid-count field inflates single_bidder_rate to ~91%.  We use
                 -- lot_bidscount only; rows where it is absent receive NULL (bid count unknown)
-                -- and are treated as missing — not as single-bidder — throughout the pipeline.
+                -- and are treated as missing, not as single-bidder, throughout the pipeline.
                 CAST(lot_bidscount AS DOUBLE) AS bid_count,
                 CAST(COALESCE(tender_corrections_count, 0) AS DOUBLE) AS contract_amendments,
                 CAST(COALESCE(tender_year, YEAR(tender_awarddecisiondate), 0) AS INTEGER) AS award_year,

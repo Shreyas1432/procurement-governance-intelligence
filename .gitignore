@@ -13,6 +13,12 @@ dist/
 *.env
 .env
 
+# Streamlit secrets — never commit (auth store salt, anonymization salt,
+# future API keys). .streamlit/config.toml and
+# .streamlit/secrets.toml.example ARE safe to commit and are not covered by
+# this rule.
+.streamlit/secrets.toml
+
 # Python
 __pycache__/
 *.pyc
@@ -42,6 +48,7 @@ Dataset/
 CLAUDE.md
 claude_memory.md
 project_memory.md
+PGI_PROJECT_STATE.md
 scratch/
 archive/
 graphify-out/

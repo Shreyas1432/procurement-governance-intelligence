@@ -133,9 +133,7 @@ def generate_all_charts():
             .alias("buyer_type")
         )
 
-    # =========================================================================
-    # SECTION A: DATA QUALITY (Charts 01-04)
-    # =========================================================================
+    # Section A: Data quality (Charts 01-04)
 
     # Chart 01: Schema null rates
     df_nulls = pl.DataFrame({
@@ -211,9 +209,7 @@ def generate_all_charts():
     )
     write_plot_artifacts("04_contract_value_distribution", fig04, pl.from_pandas(df_val.head(1000)), "01_data_quality.sql", f"Median: EUR {df_contracts['contract_value'].median():,.2f}")
 
-    # =========================================================================
-    # SECTION B: BUYER ECOSYSTEM (Charts 05-08)
-    # =========================================================================
+    # Section B: Buyer ecosystem (Charts 05-08)
 
     # Chart 05: Buyer count by type
     df_buyer_types = classify_buyer_type(df_contracts).group_by("buyer_type").agg(
@@ -277,9 +273,7 @@ def generate_all_charts():
     )
     write_plot_artifacts("08_hhi_distribution_across_buyers", fig08, df_buyer_dep, "10_feature_buyer_dependency.sql", f"Highly concentrated buyers (HHI > 0.25): {(df_buyer_dep['buyer_concentration_hhi'] > 0.25).mean():.2%}")
 
-    # =========================================================================
-    # SECTION C: SUPPLIER ECOSYSTEM (Charts 09-11)
-    # =========================================================================
+    # Section C: Supplier ecosystem (Charts 09-11)
 
     # Chart 09: Top-20 suppliers by contract count
     df_top_sup = df_supplier.sort("contract_count", descending=True).head(20).to_pandas()
@@ -324,9 +318,7 @@ def generate_all_charts():
     )
     write_plot_artifacts("11_supplier_yoy_activity", fig11, pl.from_pandas(df_churn), "03_supplier_ecosystem.sql", f"Peak active suppliers: {df_churn['active_suppliers'].max()}")
 
-    # =========================================================================
-    # SECTION D: COMPETITION & GOVERNANCE (Charts 12-15)
-    # =========================================================================
+    # Section D: Competition and governance (Charts 12-15)
 
     # Chart 12: Procedure type distribution
     df_proc_dist = df_procedure.select([
@@ -384,9 +376,7 @@ def generate_all_charts():
     )
     write_plot_artifacts("15_single_bidder_rate_trend_by_year", fig15, df_02, "06_temporal_analysis.sql", f"Latest single bid rate: {df_02.sort('award_year', descending=True)['single_bid_rate'][0]:.2%}")
 
-    # =========================================================================
-    # SECTION E: CPV & PRICE (Charts 16-18)
-    # =========================================================================
+    # Section E: CPV and price (Charts 16-18)
 
     # Chart 16: CPV division coverage
     df_cpv_top = df_cpv.sort("record_count", descending=True).head(15).to_pandas()
@@ -428,9 +418,7 @@ def generate_all_charts():
     )
     write_plot_artifacts("18_price_vs_bid_count_scatter", fig18, pl.from_pandas(df_scatter.head(1000)), "12_feature_competition_risk.sql", "Scatter plot generated")
 
-    # =========================================================================
-    # SECTION F: INTEGRATION PREVIEW (Charts 19-20)
-    # =========================================================================
+    # Section F: Integration preview (Charts 19-20)
 
     # Chart 19: Governance risk signal heatmap
     df_heatmap_risk = classify_buyer_type(
@@ -477,7 +465,7 @@ def generate_all_charts():
     fig20.update_layout(title="Dataset Summary Statistics Factsheet")
     write_plot_artifacts("20_dataset_summary_statistics_table", fig20, df_table, "all", "Factsheet compiled")
 
-    print("✓ Successfully generated all 20 Plotly charts")
+    print("Successfully generated all 20 Plotly charts")
 
 if __name__ == "__main__":
     generate_all_charts()

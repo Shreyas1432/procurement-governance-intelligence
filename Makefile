@@ -1,4 +1,4 @@
-.PHONY: features rq1 rq2 rq3 pipeline audit test dashboard figures strip clean
+.PHONY: features rq1 rq2 rq3 resilience pipeline audit test dashboard figures strip clean
 
 PY = .venv/bin/python
 
@@ -14,6 +14,9 @@ rq2:
 rq3:
 	$(PY) -m src.rq3_price_intelligence.rq3_pricing
 
+resilience:
+	$(PY) -m src.rq4_resilience.resilience
+
 pipeline:
 	$(PY) run_full_pipeline.py
 
@@ -24,7 +27,7 @@ test:
 	.venv/bin/pytest tests/ -v
 
 dashboard:
-	.venv/bin/streamlit run src/dashboard/app.py
+	$(PY) -m streamlit run src/dashboard/app.py
 
 figures:
 	$(PY) src/figures/build_figures.py

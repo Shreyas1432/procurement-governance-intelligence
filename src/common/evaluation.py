@@ -19,16 +19,16 @@ def coverage_aware_corr(left, right) -> dict:
 
     Drops null/NaN pairs, then classifies the result as one of:
 
-    - ``computed``              — paired observations are a representative majority
+    - ``computed``: paired observations are a representative majority
                                   (n_paired * 2 >= n_total) and n_paired >= MIN_CORR_PAIRS.
                                   ``value`` is the Pearson r; ``observed_value`` mirrors it.
-    - ``measured_null``         — enough data but one input is constant (zero variance).
+    - ``measured_null``: enough data but one input is constant (zero variance).
                                   ``value`` = 0.0; ``observed_value`` = 0.0.
                                   This state takes precedence over the minority rule.
-    - ``degenerate_low_coverage`` — either n_paired < MIN_CORR_PAIRS (count trigger,
+    - ``degenerate_low_coverage``: either n_paired < MIN_CORR_PAIRS (count trigger,
                                   ``observed_value`` = None) or n_paired * 2 < n_total
                                   (minority rule, ``observed_value`` = Pearson r over
-                                  paired subset).  ``value`` = None in both cases.
+                                  paired subset). ``value`` = None in both cases.
 
     Parameters
     ----------

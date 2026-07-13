@@ -1,4 +1,4 @@
-"""Full pipeline runner — executes all phases in sequence."""
+"""Full pipeline runner: executes all phases in sequence."""
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -37,7 +37,7 @@ if __name__ == "__main__":
             fn()
             log.info(f"Complete: {name}")
         except Exception as e:
-            log.error(f"FAILED: {name} — {type(e).__name__}: {e}")
+            log.error(f"FAILED: {name}: {type(e).__name__}: {e}")
             log.error("Continuing with next phase...")
 
     # Data provenance metadata for the dashboard (CHANGE 8)

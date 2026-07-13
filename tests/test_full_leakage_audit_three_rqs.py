@@ -1,19 +1,17 @@
 """
-tests/test_full_leakage_audit_three_rqs.py
-============================================
-Full-fledged data leakage audit across all three Research Questions.
+Data leakage audit across all three Research Questions.
 
 RQ1: Supplier Network Intelligence (NetworkX, Louvain, Resilience)
 RQ2: Procurement Governance Risk (RF / XGB / LR ensemble)
 RQ3: Price Intelligence (GBR + LOF + IsolationForest)
 
 Leakage types tested per RQ:
-  [T1] Target Leakage       — label-defining features present in X
-  [T2] Temporal Leakage     — future data seen during training
-  [T3] In-Sample Leakage    — model scores its own training data as predictions
-  [T4] Feature-Time Leakage — network/HHI/rolling features use future contracts
-  [T5] Label-Rule Leakage   — label is a deterministic function of input features
-  [T6] Evaluation Leakage   — val/test overlap inflates reported metrics
+  [T1] Target Leakage       : label-defining features present in X
+  [T2] Temporal Leakage     : future data seen during training
+  [T3] In-Sample Leakage    : model scores its own training data as predictions
+  [T4] Feature-Time Leakage : network/HHI/rolling features use future contracts
+  [T5] Label-Rule Leakage   : label is a deterministic function of input features
+  [T6] Evaluation Leakage   : val/test overlap inflates reported metrics
 
 Run:
     python tests/test_full_leakage_audit_three_rqs.py
@@ -25,7 +23,7 @@ Exit code 0 = clean. Exit code 1 = leakage found.
 import sys
 from pathlib import Path
 
-# Ensure project root is in sys.path for standalone or global pytest runs
+# ensure project root is in sys.path for standalone or global pytest runs
 root_dir = Path(__file__).resolve().parent.parent
 if str(root_dir) not in sys.path:
     sys.path.insert(0, str(root_dir))
@@ -39,14 +37,14 @@ from typing import Optional
 
 warnings.filterwarnings("ignore")
 
-# ─── Config mirrors (no import needed — audit runs standalone) ────────────────
+# Config mirrors (no import needed, audit runs standalone)
 
-TRAIN_YEARS   = list(range(2014, 2019))   # 2014–2018
+TRAIN_YEARS   = list(range(2014, 2019))   # 2014-2018
 VAL_YEARS     = [2019]
 TEST_YEARS    = [2020]
 GAP_YEARS     = [2017, 2018]              # originally excluded in some configs
 
-# Columns that define risk_label — must NEVER be in X
+# Columns that define risk_label, must never be in X
 RQ2_LABEL_INPUTS = [
     "procedure_risk", "competition_risk", "dependency_risk", "corrective_risk",
     "R_gov", "R_proc", "R_comp", "R_dep", "R_corr", "R_sup",
@@ -79,7 +77,7 @@ SRC_FE  = Path("src/core/feature_engineering.py")
 SRC_CFG = Path("src/core/config.py")
 
 
-# ─── Audit accumulator ───────────────────────────────────────────────────────
+# Audit accumulator
 
 class AuditResult:
     def __init__(self, rq, test_id, name, status, severity, detail, fix=""):
@@ -108,7 +106,7 @@ def record(rq, tid, name, status, severity, detail, fix=""):
     RESULTS.append(AuditResult(rq, tid, name, status, severity, detail, fix))
 
 
-# ─── Synthetic fixture ────────────────────────────────────────────────────────
+# Synthetic fixture
 
 def make_contracts(n=800, seed=42):
     rng = np.random.default_rng(seed)
@@ -137,7 +135,7 @@ def make_contracts(n=800, seed=42):
         "buyer_id":                 [f"B{rng.integers(0,80):03d}" for _ in range(n)],
         "supplier_id":              [f"S{rng.integers(0,300):04d}" for _ in range(n)],
         "award_year":               years,
-        # ── raw procurement observables ──────────────────────────────
+        # raw procurement observables
         "bid_count":                bids,
         "bid_count_clipped":        np.clip(bids,1,50),
         "procedure_type":           procs,
@@ -150,17 +148,17 @@ def make_contracts(n=800, seed=42):
         "contract_value_log":       log_v,
         "cpv_enc":                  cpv,
         "cpv_risk_score":           cpv_rs,
-        # ── label and label-derived ──────────────────────────────────
+        # label and label-derived
         "risk_label":               label,
         "R_gov":                    dep * 0.6 + (bids == 1).astype(float) * 0.4,
         "governance_score":         dep * 0.55 + (bids == 1).astype(float) * 0.45,
         "ensemble_risk_prob":       rng.uniform(0,1,n),
         "single_bidder_flag":       (bids == 1).astype(int),
-        # ── RQ3 price fields ─────────────────────────────────────────
+        # RQ3 price fields
         "final_price":              np.expm1(log_v),
         "contract_value":           np.expm1(log_v),
         "cpv_division":             (cpv // 3).astype(str),
-        # ── RQ1 network fields ───────────────────────────────────────
+        # RQ1 network fields
         "degree_centrality":        cent,
         "betweenness_centrality":   rng.uniform(0,0.1,n),
         "community_id":             rng.integers(0,12,n),
@@ -175,14 +173,12 @@ def split(df):
     return train, val, test
 
 
-# ═══════════════════════════════════════════════════════════════════
-# RQ1 — SUPPLIER NETWORK INTELLIGENCE
-# ═══════════════════════════════════════════════════════════════════
+# RQ1: supplier network intelligence
 
 def audit_rq1(df):
     train, val, test = split(df)
 
-    # ── T2-RQ1-01: Graph built on training years only ────────────────
+    # T2-RQ1-01: graph built on training years only
     if SRC_RQ1.exists():
         src = SRC_RQ1.read_text()
         has_filter = any(k in src for k in [
@@ -204,7 +200,7 @@ def audit_rq1(df):
         record("RQ1","T2-01","Graph uses training-year contracts only",
                "SKIP","HIGH","rq1_network.py not found.")
 
-    # ── T2-RQ1-02: Centrality joined to all rows (not recomputed per year) ─
+    # T2-RQ1-02: centrality joined to all rows (not recomputed per year)
     # Verify that test contracts receive centrality from the training graph
     # (not recomputed on test-year data which would leak future edges)
     if SRC_RQ1.exists():
@@ -231,7 +227,7 @@ def audit_rq1(df):
         record("RQ1","T2-02","Centrality joined (not re-fitted) to test rows",
                "SKIP","HIGH","rq1_network.py not found.")
 
-    # ── T2-RQ1-03: Louvain community detection on training graph only ──
+    # T2-RQ1-03: Louvain community detection on training graph only
     if SRC_RQ1.exists():
         src = SRC_RQ1.read_text()
         louvain_calls = src.count("best_partition") + src.count("louvain")
@@ -258,7 +254,7 @@ def audit_rq1(df):
         record("RQ1","T2-03","Louvain run on training-year graph only",
                "SKIP","HIGH","rq1_network.py not found.")
 
-    # ── T4-RQ1-04: HHI computed historically (rolling, not full-period) ─
+    # T4-RQ1-04: HHI computed historically (rolling, not full-period)
     fe_src = SRC_FE.read_text() if SRC_FE.exists() else ""
     has_window_hhi = any(k in fe_src for k in [
         "ROWS BETWEEN UNBOUNDED PRECEDING",
@@ -283,7 +279,7 @@ def audit_rq1(df):
                "Use: SUM(POWER(share,2)) OVER (PARTITION BY buyer_id "
                "ORDER BY award_year ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)")
 
-    # ── T4-RQ1-05: Resilience simulation uses training-period topology ─
+    # T4-RQ1-05: resilience simulation uses training-period topology
     if SRC_RQ1.exists():
         src = SRC_RQ1.read_text()
         has_resilience = "resilience" in src.lower() or "monte_carlo" in src.lower()
@@ -301,7 +297,7 @@ def audit_rq1(df):
         record("RQ1","T4-05","Resilience simulation uses training-period topology",
                "SKIP","MEDIUM","rq1_network.py not found.")
 
-    # ── Empirical: train/test year boundary ───────────────────────────
+    # Empirical: train/test year boundary
     train_max = train["award_year"].max() if len(train) else None
     test_min  = test["award_year"].min()  if len(test)  else None
     overlap   = set(train["award_year"]) & set(test["award_year"])
@@ -316,9 +312,7 @@ def audit_rq1(df):
                f"Train max year: {train_max} | Test min year: {test_min} | No overlap.")
 
 
-# ═══════════════════════════════════════════════════════════════════
-# RQ2 — PROCUREMENT GOVERNANCE RISK
-# ═══════════════════════════════════════════════════════════════════
+# RQ2: procurement governance risk
 
 def audit_rq2(df):
     from sklearn.ensemble import RandomForestClassifier
@@ -330,7 +324,7 @@ def audit_rq2(df):
     y_test  = test["risk_label"].values
     classes = sorted(df["risk_label"].unique())
 
-    # ── T1-RQ2-01: Label-defining columns NOT in feature matrix ───────
+    # T1-RQ2-01: label-defining columns not in feature matrix
     # Import the actual model feature list from config to check what the model uses.
     try:
         from src.core.config import FEATURES as MODEL_FEATURES
@@ -359,8 +353,8 @@ def audit_rq2(df):
                f"No label-defining columns found in model feature list "
                f"{MODEL_FEATURES if MODEL_FEATURES else '(fallback: dataset cols)'}.") 
 
-    # ── T5-RQ2-02: Label-rule leakage — this is the KEY finding ───────
-    # risk_label is a DETERMINISTIC function of: bid_count, buyer_dependency_ratio,
+    # T5-RQ2-02: label-rule leakage, the key finding
+    # risk_label is a deterministic function of: bid_count, buyer_dependency_ratio,
     # procedure_type, contract_amendments.
     # If ANY of these are in the actual model feature list, the model learns a trivial mapping.
     if MODEL_FEATURES is not None:
@@ -443,7 +437,7 @@ def audit_rq2(df):
         record("RQ2","T3-03","OOF (cross_val_predict) used for training-period scores",
                "SKIP","HIGH","rq2_governance.py not found.")
 
-    # ── T3-RQ2-04: score_type column in predictions parquet ───────────
+    # T3-RQ2-04: score_type column in predictions parquet
     pred_path = DATA_RESULTS / "rq2_governance_predictions.parquet"
     if pred_path.exists():
         pred_df = pd.read_parquet(pred_path)
@@ -469,7 +463,7 @@ def audit_rq2(df):
         record("RQ2","T3-04","Predictions parquet has score_type column",
                "SKIP","HIGH","rq2_governance_predictions.parquet not found — run make rq2.")
 
-    # ── T6-RQ2-05: VAL_YEARS and TEST_YEARS do not overlap ────────────
+    # T6-RQ2-05: VAL_YEARS and TEST_YEARS do not overlap
     cfg_src = SRC_CFG.read_text() if SRC_CFG.exists() else ""
     overlap_clue = ("VAL_YEARS" in cfg_src and "TEST_YEARS" in cfg_src)
     if overlap_clue:
@@ -504,7 +498,7 @@ def audit_rq2(df):
         record("RQ2","T6-05","VAL_YEARS and TEST_YEARS do not overlap",
                "WARN","MEDIUM","VAL_YEARS or TEST_YEARS not found in config.py.")
 
-    # ── T2-RQ2-06: No contract_id in both train and test ──────────────
+    # T2-RQ2-06: no contract_id in both train and test
     id_overlap = set(train["contract_id"]) & set(test["contract_id"])
     if id_overlap:
         record("RQ2","T2-06","No contract_id overlap between train and test",
@@ -516,7 +510,7 @@ def audit_rq2(df):
                "PASS","HIGH",
                f"Train {len(train):,} | Test {len(test):,} | Zero contract_id overlap.")
 
-    # ── T1-RQ2-07: RQ2_LABEL_INPUTS excluded in config ────────────────
+    # T1-RQ2-07: RQ2_LABEL_INPUTS excluded in config
     if cfg_src:
         has_label_inputs_const = "RQ2_LABEL_INPUTS" in cfg_src or "LABEL_DEFINING" in cfg_src
         if has_label_inputs_const:
@@ -535,9 +529,7 @@ def audit_rq2(df):
                "SKIP","MEDIUM","config.py not found.")
 
 
-# ═══════════════════════════════════════════════════════════════════
-# RQ2 — PROXY / TARGET-CORRELATION GUARDRAIL
-# ═══════════════════════════════════════════════════════════════════
+# RQ2: proxy / target-correlation guardrail
 
 # Strong-proxy correlation thresholds. The exact-column audit (T1/T5) only
 # catches a feature whose NAME is a label input; it cannot see a feature that
@@ -631,9 +623,7 @@ def audit_rq2_proxy():
                f"All model features below proxy threshold {PROXY_WARN_THRESHOLD}. {summary}")
 
 
-# ═══════════════════════════════════════════════════════════════════
-# RQ3 — PRICE INTELLIGENCE
-# ═══════════════════════════════════════════════════════════════════
+# RQ3: price intelligence
 
 def audit_rq3(df):
     from sklearn.ensemble import GradientBoostingRegressor, IsolationForest
@@ -649,7 +639,7 @@ def audit_rq3(df):
     rq3_leak  = ["contract_value","final_price","risk_label","R_gov",
                  "buyer_dependency_ratio","bid_count"]  # bid_count leaks into RQ3 too
 
-    # ── T1-RQ3-01: Price target not in feature matrix ──────────────────
+    # T1-RQ3-01: price target not in feature matrix
     price_in_X = [c for c in rq3_leak[:2] if c in df.columns]
     # The price IS the target, so if contract_value/final_price appears as a feature
     # alongside contract_value_log as target, it's direct leakage
@@ -667,7 +657,7 @@ def audit_rq3(df):
                "PASS","CRITICAL",
                "No near-perfect price proxies found in feature columns.")
 
-    # ── T5-RQ3-02: R² sanity — if suspiciously high, diagnose ─────────
+    # T5-RQ3-02: R2 sanity check, diagnose if suspiciously high
     rq3_metrics_path = DATA_RESULTS / "rq3_success_metrics.json"
     if rq3_metrics_path.exists():
         m = json.loads(rq3_metrics_path.read_text())
@@ -717,7 +707,7 @@ def audit_rq3(df):
             record("RQ3","T5-02","GBR R² not suspiciously high",
                    "SKIP","HIGH","rq3_success_metrics.json not found — run make rq3.")
 
-    # ── T3-RQ3-03: OOF residuals for training rows ────────────────────
+    # T3-RQ3-03: OOF residuals for training rows
     if SRC_RQ3.exists():
         src = SRC_RQ3.read_text()
         uses_oof   = "cross_val_predict" in src
@@ -744,7 +734,7 @@ def audit_rq3(df):
         record("RQ3","T3-03","OOF residuals used (cross_val_predict)",
                "SKIP","HIGH","rq3_pricing.py not found.")
 
-    # ── T3-RQ3-04: residual_source column in anomaly output ───────────
+    # T3-RQ3-04: residual_source column in anomaly output
     anomaly_path = DATA_RESULTS / "rq3_anomaly_flags.parquet"
     if anomaly_path.exists():
         af = pd.read_parquet(anomaly_path)
@@ -768,11 +758,11 @@ def audit_rq3(df):
         record("RQ3","T3-04","Anomaly flags have residual_source column",
                "SKIP","HIGH","rq3_anomaly_flags.parquet not found — run make rq3.")
 
-    # ── T2-RQ3-05: CPV filtering uses only training-visible categories ─
+    # T2-RQ3-05: CPV filtering uses only training-visible categories
     if SRC_RQ3.exists():
         src = SRC_RQ3.read_text()
         # Correct: determine valid CPV categories from training set, apply filter to test
-        # Wrong:   filter on full dataset then split → test categories inform filter threshold
+        # Wrong: filter on full dataset then split, test categories inform filter threshold
         has_train_cpv_filter = any(k in src for k in [
             "train_cpv","train[","valid_cpvs","train.groupby","cpv_train",
             "TRAIN_YEARS","value_counts().index","train_cats"
@@ -796,11 +786,11 @@ def audit_rq3(df):
         record("RQ3","T2-05","CPV category filter derived from training set only",
                "SKIP","MEDIUM","rq3_pricing.py not found.")
 
-    # ── T4-RQ3-06: LOF/IsoForest fit on training data, score all ──────
+    # T4-RQ3-06: LOF/IsoForest fit on training data, score all
     if SRC_RQ3.exists():
         src = SRC_RQ3.read_text()
         # Correct: lof.fit(X_train).predict(X_test)
-        # Wrong:   lof.fit_predict(X_full) — fits and predicts on same data
+        # Wrong: lof.fit_predict(X_full), fits and predicts on same data
         uses_fit_predict = "fit_predict" in src
         uses_correct     = ("fit(X_train" in src or "fit(train" in src)
         if uses_fit_predict and not uses_correct:
@@ -831,7 +821,7 @@ def audit_rq3(df):
         record("RQ3","T4-06","LOF/IsoForest fitted on train, scored on all",
                "SKIP","HIGH","rq3_pricing.py not found.")
 
-    # ── Empirical: anomaly rate sanity check ─────────────────────────
+    # Empirical: anomaly rate sanity check
     if anomaly_path.exists():
         af = pd.read_parquet(anomaly_path)
         if "consensus_anomaly" in af.columns or "consensus_flag" in af.columns:
@@ -861,16 +851,14 @@ def audit_rq3(df):
                "SKIP","MEDIUM","rq3_anomaly_flags.parquet not found — run make rq3.")
 
 
-# ═══════════════════════════════════════════════════════════════════
-# CROSS-RQ INTEGRATION LEAKAGE
-# ═══════════════════════════════════════════════════════════════════
+# Cross-RQ integration leakage
 
 def audit_integration():
     """Checks that RQ2 doesn't use RQ3 outputs as features and vice versa."""
 
-    # ── Integration: RQ1 outputs fed into RQ2 correctly ──────────────
-    # supplier_centrality and hhi (from RQ1) ARE allowed in RQ2 features
-    # ensemble_risk_prob (from RQ2) is NOT allowed in RQ3 features
+    # Integration: RQ1 outputs fed into RQ2 correctly
+    # supplier_centrality and hhi (from RQ1) are allowed in RQ2 features
+    # ensemble_risk_prob (from RQ2) is not allowed in RQ3 features
     if SRC_RQ3.exists():
         src = SRC_RQ3.read_text()
         rq2_outputs_in_rq3 = any(k in src for k in [
@@ -892,7 +880,7 @@ def audit_integration():
         record("INT","T1-01","RQ2 outputs not used as RQ3 features",
                "SKIP","HIGH","rq3_pricing.py not found.")
 
-    # ── Integration: unified score doesn't use both inputs and outputs ─
+    # Integration: unified score doesn't use both inputs and outputs
     int_src_path = Path("src/integration/integration.py")
     if int_src_path.exists():
         src = int_src_path.read_text()
@@ -924,9 +912,7 @@ def audit_integration():
                "SKIP","MEDIUM","integration.py not found.")
 
 
-# ═══════════════════════════════════════════════════════════════════
-# REPORT
-# ═══════════════════════════════════════════════════════════════════
+# Report
 
 def print_report():
     by_rq = {}

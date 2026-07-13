@@ -346,7 +346,7 @@ PNG, HTML, Markdown, and metadata JSON files are generated and stored in `result
         with open(REPORTS_DIR / f"{filename}.md", "w") as f:
             f.write(content)
             
-    print("✓ Successfully generated all per-chart and section reports")
+    print("Successfully generated all per-chart and section reports")
 
 if __name__ == "__main__":
     generate_reports()

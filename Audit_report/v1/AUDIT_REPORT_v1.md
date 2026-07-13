@@ -1,18 +1,18 @@
-# Project_Main Audit — Version 1 (Baseline)
+# Project_Main Audit - Version 1 (Baseline)
 
 - **Target:** `procurement-governance-intelligence` (Project_Main)
 - **Date:** 2026-06-02
 - **Scope:** `src/`, root `phase*.py`, `run_full_pipeline.py`, `tests/`, `requirements.txt`, `pyproject.toml`, `Makefile`, `.env.example` (~4,117 LOC production)
 - **Excluded:** `archive/`, `graphify-out/`, `data/` (gitignored / external symlink), `notebooks/`
 
-## Tally: 21 findings — 0 CRITICAL · 6 MAJOR · 14 MINOR · 1 INFO
+## Tally: 21 findings - 0 CRITICAL, 6 MAJOR, 14 MINOR, 1 INFO
 
 | ID | Sev | Category | Title |
 |----|-----|----------|-------|
 | PM-V1-001 | MAJOR | TEST_INTEGRITY | Success tests assert on committed JSON, not recomputed behavior |
 | PM-V1-002 | MAJOR | TEST_INTEGRITY | `test_ensemble_beats_solo` vacuous/misnamed (dead `best_solo`) |
 | PM-V1-003 | MAJOR | TEST_INTEGRITY | Leakage guards pass vacuously when data absent (silent `return`) |
-| PM-V1-004 | MAJOR | EDGE_CASE | RQ1 Louvain fallback hardcodes `modularity=0.35` → passes threshold |
+| PM-V1-004 | MAJOR | EDGE_CASE | RQ1 Louvain fallback hardcodes `modularity=0.35`, passes threshold |
 | PM-V1-005 | MAJOR | DEPENDENCY | Missing prod deps: `matplotlib`, `python-pptx` |
 | PM-V1-006 | MAJOR | SECURITY | `config.py` `exec()`s reconstructed stdlib source, swallowed |
 | PM-V1-007 | MINOR | EDGE_CASE | Binary `scale_pos_weight` on 3-class target |
@@ -39,8 +39,8 @@
 4. **Reproducibility gaps:** two missing prod deps and unpinned versions (PM-V1-005/020).
 
 ## Priority fix order (highest leverage first)
-1. PM-V1-001/003 — make success + leakage tests recompute behavior and SKIP (not PASS) without data.
-2. PM-V1-004 — remove the hardcoded modularity fallback.
-3. PM-V1-005 — add `matplotlib`, `python-pptx` to requirements.
-4. PM-V1-006 — drop the stdlib `exec()` patch; pin interpreter.
+1. PM-V1-001/003: make success + leakage tests recompute behavior and SKIP (not PASS) without data.
+2. PM-V1-004: remove the hardcoded modularity fallback.
+3. PM-V1-005: add `matplotlib`, `python-pptx` to requirements.
+4. PM-V1-006: drop the stdlib `exec()` patch; pin interpreter.
 5. Remaining MINORs as cleanup.

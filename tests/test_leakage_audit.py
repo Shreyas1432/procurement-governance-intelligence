@@ -1,13 +1,11 @@
 """
-tests/test_leakage_audit.py
-============================
-Comprehensive data leakage audit for Procurement Governance Intelligence.
+Data leakage audit for Procurement Governance Intelligence.
 
-Covers all four leakage types specific to this project:
-  TYPE 1 — Target Leakage     : label-defining columns present in feature matrix
-  TYPE 2 — Temporal Leakage   : future data bleeding into training set
-  TYPE 3 — In-Sample Scoring  : model scores training rows as if they were unseen
-  TYPE 4 — Feature-Time Leakage : supplier/buyer features computed using future contracts
+Covers four leakage types specific to this project:
+  TYPE 1 - Target Leakage     : label-defining columns present in feature matrix
+  TYPE 2 - Temporal Leakage   : future data bleeding into training set
+  TYPE 3 - In-Sample Scoring  : model scores training rows as if they were unseen
+  TYPE 4 - Feature-Time Leakage : supplier/buyer features computed using future contracts
 
 Run:
     python tests/test_leakage_audit.py          # standalone audit report
@@ -20,7 +18,7 @@ so all tests run on a fresh checkout (no parquet files required).
 import sys
 from pathlib import Path
 
-# Ensure project root is in sys.path
+# ensure project root is in sys.path
 root_dir = Path(__file__).resolve().parent.parent
 if str(root_dir) not in sys.path:
     sys.path.insert(0, str(root_dir))
@@ -40,16 +38,14 @@ import pandas as pd
 
 warnings.filterwarnings("ignore")
 
-# ---------------------------------------------------------------------------
-# CONFIGURATION (mirrors src/core/config.py — no import needed for audit)
-# ---------------------------------------------------------------------------
+# Configuration (mirrors src/core/config.py, no import needed for audit)
 
 TRAIN_YEARS = (2006, 2016)
 TEST_YEARS  = (2019, 2021)
-GAP_YEARS   = (2017, 2018)   # deliberately excluded — temporal buffer
+GAP_YEARS   = (2017, 2018)   # deliberately excluded, temporal buffer
 
-# Columns that DEFINE the risk label — must NEVER appear in feature matrix
-# Any model that sees these achieves AUC=1.000 trivially
+# Columns that define the risk label, must never appear in feature matrix.
+# Any model that sees these achieves AUC=1.000 trivially.
 LABEL_DEFINING_COLS = [
     "risk_label",           # the target itself
     "R_gov",                # composite score the label is derived from
@@ -62,10 +58,10 @@ LABEL_DEFINING_COLS = [
     "is_single_bidder",     # alternative name for same concept
     "bid_count_flag",       # derived from bid_count == 1
     "governance_score",     # ensemble output used as integration feature
-    "ensemble_risk_prob",   # model output — must not feed back into features
+    "ensemble_risk_prob",   # model output, must not feed back into features
 ]
 
-# Columns that MUST be present in any valid feature set
+# Columns that must be present in any valid feature set
 REQUIRED_FEATURES = [
     "contract_id",
     "buyer_id",
@@ -73,7 +69,7 @@ REQUIRED_FEATURES = [
     "award_year",
 ]
 
-# Allowed features (safe inputs for ML — all pre-award observables)
+# Allowed features (safe inputs for ML, all pre-award observables)
 SAFE_FEATURES = [
     "procedure_type_encoded",
     "bid_count",                    # number of bids received (pre-award observable)
@@ -88,9 +84,7 @@ SAFE_FEATURES = [
     "bid_count_clipped",
 ]
 
-# ---------------------------------------------------------------------------
-# AUDIT RESULTS ACCUMULATOR
-# ---------------------------------------------------------------------------
+# Audit results accumulator
 
 class LeakageAudit:
     def __init__(self):
@@ -140,14 +134,11 @@ class LeakageAudit:
 AUDIT = LeakageAudit()
 
 
-# ---------------------------------------------------------------------------
-# SYNTHETIC FIXTURES (used when real data is not available)
-# ---------------------------------------------------------------------------
+# Synthetic fixtures, used when real data is not available
 
 def make_contracts(n=500) -> pd.DataFrame:
-    """
-    Synthetic procurement contracts with realistic column structure.
-    Covers both safe features AND potentially-leaking columns.
+    """Synthetic procurement contracts with realistic column structure.
+    Covers both safe features and potentially-leaking columns.
     """
     rng = np.random.default_rng(42)
     years = rng.choice(list(range(2006, 2022)), size=n)
@@ -182,7 +173,7 @@ def make_contracts(n=500) -> pd.DataFrame:
         "supplier_centrality":    rng.uniform(0.0, 0.5, n),
         "cpv_enc":                rng.integers(0, 30, n),
         "cpv_risk_score":         rng.uniform(0.1, 0.9, n),
-        # --- THESE are the dangerous columns ---
+        # dangerous columns below
         "R_gov":                  R_gov,
         "R_proc":                 R_proc,
         "R_comp":                 R_comp,
@@ -202,9 +193,7 @@ def make_train_test(df: pd.DataFrame):
     return train, test
 
 
-# ---------------------------------------------------------------------------
-# TYPE 1: TARGET LEAKAGE TESTS
-# ---------------------------------------------------------------------------
+# Type 1: target leakage tests
 
 def test_type1_no_label_defining_cols_in_feature_matrix():
     """
@@ -375,14 +364,12 @@ def test_type1_single_bid_rate_is_not_a_feature():
         )
 
 
-# ---------------------------------------------------------------------------
-# TYPE 2: TEMPORAL LEAKAGE TESTS
-# ---------------------------------------------------------------------------
+# Type 2: temporal leakage tests
 
 def test_type2_train_test_boundary():
     """
-    Train: 2006–2016. Test: 2019–2021. Gap: 2017–2018 deliberately excluded.
-    Any 2017–2018 rows in training = temporal boundary violation.
+    Train: 2006-2016. Test: 2019-2021. Gap: 2017-2018 deliberately excluded.
+    Any 2017-2018 rows in training = temporal boundary violation.
     Any 2016 rows in test = train-test contamination.
     """
     df = make_contracts(n=1000)
@@ -423,7 +410,7 @@ def test_type2_train_test_boundary():
 def test_type2_no_overlap_in_contract_ids():
     """
     No contract_id should appear in both train and test sets.
-    This is a direct contamination check — any overlap means
+    This is a direct contamination check: any overlap means
     the model saw test-set contracts during training.
     """
     df = make_contracts(n=1000)
@@ -533,7 +520,7 @@ def test_type2_supplier_features_use_historical_data_only():
 
 def test_type2_gap_years_excluded_from_both_splits():
     """
-    Gap years 2017–2018 must appear in neither train nor test.
+    Gap years 2017-2018 must appear in neither train nor test.
     If they appear in train, they can contaminate rolling features.
     If they appear in test, the evaluation is on a different population
     than declared in the thesis.
@@ -567,9 +554,7 @@ def test_type2_gap_years_excluded_from_both_splits():
         )
 
 
-# ---------------------------------------------------------------------------
-# TYPE 3: IN-SAMPLE SCORING TESTS
-# ---------------------------------------------------------------------------
+# Type 3: in-sample scoring tests
 
 def test_type3_predictions_parquet_has_score_type_column():
     """
@@ -713,9 +698,7 @@ def test_type3_cross_val_predict_used_for_train_scores():
         )
 
 
-# ---------------------------------------------------------------------------
-# TYPE 4: FEATURE-TIME LEAKAGE TESTS
-# ---------------------------------------------------------------------------
+# Type 4: feature-time leakage tests
 
 def test_type4_supplier_centrality_computed_before_focal_year():
     """
@@ -779,7 +762,7 @@ def test_type4_supplier_centrality_computed_before_focal_year():
 
 def test_type4_hhi_computed_from_historical_contracts():
     """
-    Same issue as centrality — HHI per buyer must be computed from
+    Same issue as centrality: HHI per buyer must be computed from
     historical contracts only, not the full dataset.
     """
     source_paths = [
@@ -891,9 +874,7 @@ def test_type4_rq3_residuals_on_test_set_only():
         )
 
 
-# ---------------------------------------------------------------------------
-# BONUS: CORRELATION-BASED LEAKAGE SNIFF TEST
-# ---------------------------------------------------------------------------
+# Bonus: correlation-based leakage sniff test
 
 def test_bonus_feature_label_correlation_sniff():
     """
@@ -959,9 +940,7 @@ def test_bonus_feature_label_correlation_sniff():
         )
 
 
-# ---------------------------------------------------------------------------
-# CHANGE 6 — temporal-integrity tests for graph/HHI features (pytest-only)
-# ---------------------------------------------------------------------------
+# Temporal-integrity tests for graph/HHI features (pytest-only)
 
 def test_hhi_computed_before_test_period():
     """buyer_concentration_hhi must be a historical (cumulative, no-future) HHI.
@@ -998,25 +977,23 @@ def test_centrality_computed_on_train_graph():
     )
 
 
-# ---------------------------------------------------------------------------
-# RUNNER
-# ---------------------------------------------------------------------------
+# Runner
 
 ALL_TESTS = [
-    # Type 1 — Target Leakage
+    # Type 1: target leakage
     test_type1_no_label_defining_cols_in_feature_matrix,
     test_type1_auc_ceiling_detection,
     test_type1_single_bid_rate_is_not_a_feature,
-    # Type 2 — Temporal Leakage
+    # Type 2: temporal leakage
     test_type2_train_test_boundary,
     test_type2_no_overlap_in_contract_ids,
     test_type2_supplier_features_use_historical_data_only,
     test_type2_gap_years_excluded_from_both_splits,
-    # Type 3 — In-Sample Scoring
+    # Type 3: in-sample scoring
     test_type3_predictions_parquet_has_score_type_column,
     test_type3_no_training_rows_in_reported_metrics,
     test_type3_cross_val_predict_used_for_train_scores,
-    # Type 4 — Feature-Time Leakage
+    # Type 4: feature-time leakage
     test_type4_supplier_centrality_computed_before_focal_year,
     test_type4_hhi_computed_from_historical_contracts,
     test_type4_rq3_residuals_on_test_set_only,
@@ -1040,7 +1017,7 @@ def run_audit() -> LeakageAudit:
     return AUDIT
 
 
-# pytest compatibility — each test function can also be called by pytest directly
+# pytest compatibility: each test function can also be called by pytest directly
 def test_all_leakage_checks():
     """Fails if any individual leakage check failed."""
     # AUDIT is already populated by the individual test functions

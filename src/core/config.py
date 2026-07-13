@@ -18,11 +18,11 @@ if sys.version_info >= (3, 14):
             )
             exec(_source, dataclasses.__dict__)
     except Exception:
-        pass  # Patch failed silently — acceptable on 3.14
+        pass  # Patch failed silently, acceptable on 3.14
 
 
 # Columns that DEFINE or are derived from the risk label. These must NEVER be
-# used as model inputs — any model that sees them predicts the label from the
+# used as model inputs: any model that sees them predicts the label from the
 # label (target leakage). (leakage remediation 2026-06-03)
 LABEL_DEFINING_COLS = [
     "risk_label", "R_gov", "R_proc", "R_comp", "R_dep",
@@ -32,7 +32,7 @@ LABEL_DEFINING_COLS = [
 
 # Columns that are INPUTS to the deterministic label rule.  risk_label is
 # computed as f(procedure_type, bid_count, buyer_dependency_ratio,
-# contract_amendments) — feeding any of these to the classifier makes the
+# contract_amendments), feeding any of these to the classifier makes the
 # target a trivial function of its inputs (AUC → 1.0).  Must also be excluded
 # from the model feature matrix.  (leakage remediation 2026-06-04)
 LABEL_RULE_INPUTS = [
@@ -55,13 +55,13 @@ DOCS_DIR = ROOT / "docs"
 PARQUET_FILE = Path(os.environ.get("PGI_PARQUET_PATH", DATA_RAW / "IT_DIB_2023.parquet"))
 ROW_LIMIT = int(os.environ.get("PGI_ROW_LIMIT", "200000"))
 # GRAPH_EDGE_LIMIT: maximum bipartite edges to load into NetworkX.
-# 0 = unlimited (recommended — the 60,000 default was an EDA-era testing shortcut
+# 0 = unlimited (recommended: the 60,000 default was an EDA-era testing shortcut
 # that silently discarded ~80% of training-period buyer-supplier pairs, inflating
 # modularity and reducing ARI stability).  Set via PGI_GRAPH_EDGE_LIMIT env var
 # if runtime is a concern on extremely large datasets.
 GRAPH_EDGE_LIMIT = int(os.environ.get("PGI_GRAPH_EDGE_LIMIT", "0"))
 
-# --- Year-stratified sampling -------------------------------------------------
+# Year-stratified sampling
 STRATIFY_BY_YEAR = os.environ.get("PGI_STRATIFY_BY_YEAR", "1") == "1"
 STRATA_YEAR_MIN = int(os.environ.get("PGI_STRATA_YEAR_MIN", "2014"))
 STRATA_YEAR_MAX = int(os.environ.get("PGI_STRATA_YEAR_MAX", "2020"))
@@ -70,7 +70,7 @@ STRATA_PER_YEAR_CAP = int(os.environ.get("PGI_STRATA_PER_YEAR_CAP", "100000"))
 # Temporal split windows, aligned to the stratified panel (2014-2020).
 TRAIN_YEARS = range(2014, 2019)   # 2014-2018
 VAL_YEARS = range(2019, 2020)     # 2019 only (for early stopping / validation)
-TEST_YEARS = range(2020, 2021)    # 2020 only (final holdout — no overlap with VAL)
+TEST_YEARS = range(2020, 2021)    # 2020 only (final holdout, no overlap with VAL)
 
 RQ1_CENTRALITY_TOP10_THRESHOLD = 0.3
 RQ1_MODULARITY_THRESHOLD = 0.3
@@ -148,11 +148,11 @@ ISO_PARAMS = dict(n_estimators=100, contamination=0.05, random_state=42)
 #                           category (memorisation pathology); ~0 marginal AUC; proxy WARN.
 #   - cpv_risk_score      : redundant procedure_type proxy (|corr|~0.60 with label);
 #                           ~0 marginal AUC; proxy WARN.
-#   - award_year          : constant (=2020) in the TEST split — contributes nothing
+#   - award_year          : constant (=2020) in the TEST split, contributes nothing
 #                           at test time; retained only as the temporal-split key.
 #   - buyer_concentration_hhi : after redefinition to a valid as-of-award supplier-share
 #                           HHI (bounded (0,1]; the SQL fix STAYS), the refit revealed it
-#                           is a 0.77 proxy for buyer_dependency_ratio — a LABEL-RULE INPUT
+#                           is a 0.77 proxy for buyer_dependency_ratio, a LABEL-RULE INPUT
 #                           (the label fires at dependency > 0.5 / 0.7). Its +0.068 lift is
 #                           the model reconstructing the label's own concentration trigger,
 #                           not independent signal; it WARNed T7-08 and broke the rf_f1 gate
@@ -165,10 +165,24 @@ FEATURES = [
     "contract_value_log",
 ]
 
-# All columns excluded from the model — both label outputs and label-rule inputs.
+# All columns excluded from the model: both label outputs and label-rule inputs.
 RQ2_LABEL_INPUTS = list(set(LABEL_DEFINING_COLS + LABEL_RULE_INPUTS))
 
 RQ2_MODEL_FEATURES = list(FEATURES)  # already clean; no filtering needed
+
+# Resilience / what-if module (src/rq4_resilience): value-stratified edge
+# sample of the RQ1 2014-2018 training graph. See
+# docs/THRESHOLD_JUSTIFICATION.md (resilience section) for rationale.
+RESILIENCE_SAMPLE_FRAC = 0.35
+RESILIENCE_SEED = 42
+# Systemic-importance-rank composite weights (must sum to 1.0).
+RESILIENCE_RANK_WEIGHT_EXPOSED_VALUE = 0.4
+RESILIENCE_RANK_WEIGHT_ORPHANED = 0.3
+RESILIENCE_RANK_WEIGHT_FRAGMENTATION = 0.3
+# Gate tolerance: absolute difference allowed between the sample's and the
+# full RQ1 training graph's largest-component share before a warning fires.
+RESILIENCE_COMPONENT_SHARE_GATE_TOLERANCE = 0.10
+
 
 def ensure_project_dirs() -> None:
     for path in [DATA_RAW, DATA_CURATED, DATA_FEATURES, DATA_MODELS, DATA_RESULTS, SQL_DIR, DOCS_DIR]:
