@@ -25,7 +25,7 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "src"))
 
-from dashboard._auth import require_auth, render_logout_button, anonymize_id, log_action
+from dashboard._auth import require_auth, render_logout_button, anonymize_id, log_action, PUBLIC_BUILD
 from dashboard._theme import inject_base_css, INK, INK_MUTED, FONT_SERIF, PRIMARY, AMBER, SAGE
 from dashboard._components import small_stat_card, neutral_methodology_note, chart_card, why_this_matters
 from dashboard._shell import render_sidebar_wordmark, render_topbar, render_role_switcher
@@ -228,7 +228,7 @@ if df.height > 0:
     table_pdf["buyer_id"] = table_pdf["buyer_id"].apply(safe_id)
     table_pdf["supplier_id"] = table_pdf["supplier_id"].apply(safe_id)
 
-    if role == "ADMIN":
+    if role == "ADMIN" and not PUBLIC_BUILD:
         reveal_ids = st.checkbox("Reveal named buyer and supplier IDs (logs one entry)", key="rq3_reveal_table")
         if reveal_ids:
             log_action("ADMIN", "Reveal named entity", "RQ3 anomaly table (bulk)", "success")

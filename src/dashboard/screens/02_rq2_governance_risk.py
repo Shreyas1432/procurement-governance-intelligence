@@ -25,7 +25,7 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "src"))
 
-from dashboard._auth import require_auth, render_logout_button, anonymize_id, log_action
+from dashboard._auth import require_auth, render_logout_button, anonymize_id, log_action, PUBLIC_BUILD
 from dashboard._theme import inject_base_css, INK, INK_MUTED, FONT_SERIF, RUST, RUST_DARK, RUST_TINT
 from dashboard._components import (
     small_stat_card, methodology_callout, neutral_methodology_note,
@@ -396,7 +396,7 @@ top["why_flagged"] = top.apply(_why_flagged, axis=1)
 top["buyer_id_display"] = top["buyer_id"].apply(safe_id)
 top["supplier_id_display"] = top["supplier_id"].apply(safe_id)
 
-if role == "ADMIN":
+if role == "ADMIN" and not PUBLIC_BUILD:
     st.caption("Reveal is admin only. Every reveal is logged.")
     show_ids = st.checkbox("Reveal named buyer and supplier IDs for this table (logs one entry)", key="rq2_reveal_table")
     if show_ids:

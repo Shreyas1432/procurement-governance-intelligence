@@ -145,11 +145,16 @@ if view == "Community subgraph":
             node_x = [pos[n][0] for n in node_list]
             node_y = [pos[n][1] for n in node_list]
             node_color = [PRIMARY if n.startswith("B_") else "#7A9B6F" for n in node_list]
+            from dashboard._auth import entity_label_for_list
+            node_hover_labels = [
+                entity_label_for_list(n[2:], prefix=("B" if n.startswith("B_") else "S"))
+                for n in node_list
+            ]
             fig = go.Figure()
             fig.add_trace(go.Scatter(x=edge_x, y=edge_y, mode="lines", line=dict(width=0.6, color="#D8D5CC"), hoverinfo="none"))
             fig.add_trace(go.Scatter(
                 x=node_x, y=node_y, mode="markers", marker=dict(size=8, color=node_color),
-                hovertext=node_list, hoverinfo="text",
+                hovertext=node_hover_labels, hoverinfo="text",
             ))
             fig.update_layout(
                 showlegend=False, height=420, plot_bgcolor="white", paper_bgcolor="white",

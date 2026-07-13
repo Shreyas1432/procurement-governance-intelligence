@@ -26,7 +26,7 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
-from dashboard._auth import require_auth, render_logout_button, anonymize_id, log_action
+from dashboard._auth import require_auth, render_logout_button, anonymize_id, log_action, PUBLIC_BUILD
 from dashboard._theme import inject_base_css, INK, INK_MUTED, FONT_SERIF, PRIMARY
 from dashboard._components import small_stat_card, neutral_methodology_note, why_this_matters, caveat_banner, what_if_force_graph, WHAT_IF_FORCE_GRAPH_NODE_CAP
 from dashboard._shell import render_sidebar_wordmark, render_topbar, render_role_switcher, entity_picker
@@ -83,7 +83,7 @@ def _display_id(node_id: str) -> str:
     since this is used inside lists/graph labels, not a single detail panel."""
     raw = node_id[2:]
     prefix = "B" if node_id.startswith("B_") else "S"
-    if role == "ADMIN":
+    if role == "ADMIN" and not PUBLIC_BUILD:
         return raw
     return anonymize_id(raw, prefix=prefix)
 
@@ -347,13 +347,13 @@ else:
     st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
 
     admin_show_all = False
-    if role == "ADMIN" and (res["orphaned_counterparties"] or res["stranded_buyers"] or res["substitutability"]):
+    if role == "ADMIN" and not PUBLIC_BUILD and (res["orphaned_counterparties"] or res["stranded_buyers"] or res["substitutability"]):
         admin_show_all = st.checkbox("Reveal named IDs in the lists below (logs one entry)", key="nr_reveal_lists")
         if admin_show_all:
             log_action("ADMIN", "Reveal named entity", f"Network Resilience what-if for {removal_set}", "success")
 
     def _label_for_list(nid: str) -> str:
-        if role == "ADMIN":
+        if role == "ADMIN" and not PUBLIC_BUILD:
             return nid[2:] if admin_show_all else "(reveal to view)"
         return _display_id(nid)
 

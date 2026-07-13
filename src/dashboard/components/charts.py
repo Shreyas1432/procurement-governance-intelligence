@@ -149,7 +149,12 @@ def supplier_risk_timeline(df: pl.DataFrame) -> go.Figure:
 
 
 def buyer_relationship_bar(df: pl.DataFrame) -> go.Figure:
-    """Top buyers by risk contribution for a supplier."""
+    """Top buyers by risk contribution for a supplier.
+
+    Not called from any screen today. Renders raw buyer_id with no
+    anonymize_id()/entity_label_for_list() pass -- do not wire this into a
+    screen without adding one, or it will leak real IDs under PUBLIC_BUILD.
+    """
     if df.is_empty():
         return go.Figure()
     agg = (
@@ -195,7 +200,12 @@ def centrality_gauge(centrality: float) -> go.Figure:
 # ── Buyer Charts ─────────────────────────────────────────────────────────────
 
 def supplier_relationship_bar(df: pl.DataFrame) -> go.Figure:
-    """Top suppliers for a given buyer."""
+    """Top suppliers for a given buyer.
+
+    Not called from any screen today. Renders raw supplier_id with no
+    anonymize_id()/entity_label_for_list() pass -- do not wire this into a
+    screen without adding one, or it will leak real IDs under PUBLIC_BUILD.
+    """
     if df.is_empty():
         return go.Figure()
     agg = (
@@ -275,6 +285,13 @@ def amendment_rate_bar(df: pl.DataFrame) -> go.Figure:
 # ── Anomaly Charts ───────────────────────────────────────────────────────────
 
 def anomaly_scatter(df: pl.DataFrame) -> go.Figure:
+    """Price anomaly map, estimated vs final price.
+
+    Not called from any screen today. hover_data includes raw contract_id/
+    buyer_id/supplier_id with no anonymize_id()/entity_label_for_list() pass
+    -- do not wire this into a screen without adding one, or it will leak
+    real IDs under PUBLIC_BUILD.
+    """
     if df.is_empty():
         return go.Figure()
     pdf = df.filter(
