@@ -1,0 +1,20 @@
+# Streamlit deploy configuration. Safe to commit: no secrets live here.
+# Real secrets (anonymization salt, future API keys) go in
+# .streamlit/secrets.toml, which is gitignored -- see secrets.toml.example.
+
+[server]
+headless = true
+maxUploadSize = 5
+enableCORS = false
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+# Matches docs/design/PGI.dc.html's primitive palette (src/dashboard/_theme.py).
+primaryColor = "#3B5998"
+backgroundColor = "#F9F8F6"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#221F1D"
+font = "sans serif"

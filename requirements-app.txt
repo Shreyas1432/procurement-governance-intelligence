@@ -1,0 +1,16 @@
+# Pinned runtime dependencies for the PGI dashboard only (src/dashboard/).
+# This is a strict subset of the project's full requirements.txt: the
+# dashboard is a read-only viewer over locked artifacts and never imports
+# sklearn/xgboost or calls .fit()/.predict(), so no ML training libraries
+# are listed here. Versions pinned to what the dashboard is tested against.
+
+streamlit==1.58.0
+polars==1.41.2
+polars-runtime-32==1.41.2
+pyarrow==24.0.0
+pandas==3.0.3
+numpy==2.4.6
+networkx==3.6.1
+python-louvain==0.16
+plotly==6.8.0
+scipy==1.17.1

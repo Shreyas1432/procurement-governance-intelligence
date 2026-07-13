@@ -1,0 +1,27 @@
+# Docker COPY does not respect .gitignore, so this file exists specifically
+# to keep local secrets and dev artifacts out of the image even though
+# Dockerfile does `COPY src/ src/`.
+
+# Local auth store: password hashes from whoever ran the dashboard on this
+# machine. A deploy image must start with a fresh store (self-seeds the
+# default admin account on first run) or one provided at runtime, never one
+# baked in from a developer's laptop.
+src/dashboard/_auth_store.json
+
+# Local access log and any stray per-machine .streamlit config that isn't
+# the repo-root .streamlit/ this deploy uses.
+src/dashboard/logs/
+src/dashboard/.streamlit/
+
+# Repo-root secrets: mounted at runtime, never baked into a layer (see
+# Dockerfile and DEPLOY.md).
+.streamlit/secrets.toml
+
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.venv/
+data/raw/
+data/curated/
+data/models/

@@ -1,0 +1,545 @@
+"""
+Shared authentication for the PGI dashboard, matching docs/design/PGI.dc.html's
+role model exactly: sign in as admin ("author") or viewer ("examiner").
+
+INTERIM access control, not production-grade auth. Honesty note (also shown
+in-product on the sign-in screen): a shared-secret/role-hash store is an
+interim control. Production deployment over named-supplier data should prefer
+OIDC (`st.login` with a named identity provider, Google/Entra/Auth0) or an
+authenticated reverse proxy. See Task 7 STOP gate in the project report,
+this decision has not been finalized; do not treat this module as the final
+auth architecture.
+
+Design:
+  * User accounts (username, salted password hash, role, created_at) are
+    stored in a local, gitignored JSON file (`_auth_store.json`, next to this
+    module). No plaintext passwords are ever stored.
+  * Two roles, matching the design's copy exactly:
+      ADMIN  ("author")   - named entities visible; every reveal/export logged.
+      VIEWER ("examiner") - named entities are ANONYMIZED throughout (stable
+                             hash-based pseudonyms), never denied outright.
+    This differs from the prior session's model (VIEWER = denied): the
+    design explicitly shows viewers seeing every screen, with named
+    buyer/supplier/contract IDs replaced by anonymized placeholders rather
+    than the page refusing to render.
+  * A single constant ADMIN account is seeded on first run
+    (username "admin", password "CHANGE_ME_ON_FIRST_LOGIN") if the store does
+    not already contain one. Once present, it is never re-seeded, so an
+    admin's changed password persists across restarts. ADMIN can change their
+    own password from within the app (see `render_change_password_form`).
+  * New users self-register and are always created as VIEWER. There is no
+    self-service path to ADMIN.
+  * Every login (success/failure), reveal action, and export is appended to
+    `logs/access.log` (gitignored) as
+    `{iso_timestamp}\\t{role}\\t{action}\\t{resource}\\t{outcome}`.
+    The attempted password is never logged. The audit log screen (admin-only)
+    reads this same file; viewing/filtering it is not itself logged, but
+    exporting it is.
+"""
+from __future__ import annotations
+
+import hashlib
+import hmac
+import json
+import os
+import secrets
+from datetime import datetime, timezone
+from pathlib import Path
+
+import streamlit as st
+
+_HERE = Path(__file__).resolve().parent
+STORE_PATH = _HERE / "_auth_store.json"
+LOG_DIR = _HERE / "logs"
+LOG_PATH = LOG_DIR / "access.log"
+
+ADMIN = "ADMIN"
+VIEWER = "VIEWER"
+ROLES = (ADMIN, VIEWER)
+
+# Design's own role copy, used in UI text so the product matches the mock.
+ROLE_LONG_LABEL = {ADMIN: "author (admin)", VIEWER: "examiner (viewer)"}
+
+_DEFAULT_ADMIN_USER = "admin"
+_DEFAULT_ADMIN_PASSWORD = "CHANGE_ME_ON_FIRST_LOGIN"
+
+_PBKDF2_ITERATIONS = 260_000
+
+# Public-build gate (deploy prep). When PGI_PUBLIC_BUILD=1, the admin role
+# and the named-ID reveal path are structurally unreachable: authenticate()
+# below refuses to return ADMIN, the admin sign-in tab is never rendered,
+# and reveal_or_anonymize() always anonymizes regardless of stored role.
+# Every role == ADMIN check elsewhere in the dashboard (entity_label_for_list,
+# entity_picker, per-screen reveal checkboxes, app.py's admin nav) reads
+# st.session_state["role"], which can never become ADMIN under this flag, so
+# those branches become dead code without needing to be touched individually.
+PUBLIC_BUILD = os.environ.get("PGI_PUBLIC_BUILD") == "1"
+
+# Salt for anonymization hashing, not a cryptographic secret in the FULL
+# build (this is presentation pseudonymization, not encryption). Fixed so
+# the same real ID always maps to the same anonymized label within a
+# deployment, which is required for a viewer to usefully cross-reference
+# "Supplier #A3F1" across screens.
+#
+# In the PUBLIC build this constant MUST NOT be the effective salt: it is
+# hardcoded in source, so anyone with the code and a candidate list of real
+# entity IDs could hash-test candidates against it and de-anonymize. A
+# public deploy must set anon_salt in .streamlit/secrets.toml (a real
+# per-deployment secret, never committed); this hardcoded value is only the
+# local-dev fallback so the app still runs without a secrets file.
+_ANON_SALT_DEFAULT = b"pgi-dashboard-anonymization-v1"
+
+
+def _anon_salt() -> bytes:
+    try:
+        configured = st.secrets.get("anon_salt")
+    except Exception:
+        configured = None
+    if configured:
+        return str(configured).encode("utf-8")
+    if PUBLIC_BUILD:
+        raise RuntimeError(
+            "PGI_PUBLIC_BUILD=1 requires anon_salt to be set in "
+            ".streamlit/secrets.toml. Refusing to start with the hardcoded "
+            "development salt in a public build."
+        )
+    return _ANON_SALT_DEFAULT
+
+
+# hashing
+def _hash_password(password: str, salt: bytes | None = None) -> tuple[str, str]:
+    """Return (salt_hex, hash_hex) using PBKDF2-HMAC-SHA256. stdlib only."""
+    salt = salt or secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, _PBKDF2_ITERATIONS)
+    return salt.hex(), digest.hex()
+
+
+def _verify_password(password: str, salt_hex: str, hash_hex: str) -> bool:
+    salt = bytes.fromhex(salt_hex)
+    _, candidate = _hash_password(password, salt)
+    return hmac.compare_digest(candidate, hash_hex)
+
+
+# store
+def _default_store() -> dict:
+    salt_hex, hash_hex = _hash_password(_DEFAULT_ADMIN_PASSWORD)
+    return {
+        "users": {
+            _DEFAULT_ADMIN_USER: {
+                "salt": salt_hex,
+                "hash": hash_hex,
+                "role": ADMIN,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+        }
+    }
+
+
+def _load_store() -> dict:
+    if not STORE_PATH.exists():
+        store = _default_store()
+        _save_store(store)
+        return store
+    try:
+        return json.loads(STORE_PATH.read_text())
+    except Exception:
+        # Corrupt store: do not silently wipe accounts; surface loudly instead
+        # of re-seeding (which would orphan every existing registered user).
+        raise RuntimeError(
+            f"Auth store at {STORE_PATH} is present but unreadable/corrupt. "
+            "Fix or remove it manually before continuing."
+        )
+
+
+def _save_store(store: dict) -> None:
+    STORE_PATH.write_text(json.dumps(store, indent=2))
+
+
+# logging
+def log_action(role: str, action: str, resource: str, outcome: str) -> None:
+    """Append one redacted access-log line in the design's 5-field format:
+    {iso_timestamp}\\t{role}\\t{action}\\t{resource}\\t{outcome}. Never logs
+    the attempted password. Used for logins, reveals, and exports."""
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now(timezone.utc).isoformat()
+    resource = resource.replace("\t", " ").replace("\n", " ")
+    line = f"{ts}\t{role}\t{action}\t{resource}\t{outcome}\n"
+    with open(LOG_PATH, "a") as f:
+        f.write(line)
+
+
+def read_audit_log() -> list[dict]:
+    """Parse logs/access.log into a list of dicts for the Audit Log screen.
+    Tolerates the older 4-field format written by a prior session (action is
+    inferred as 'Sign in'/'Sign out' style events, resource shown as '-')."""
+    if not LOG_PATH.exists():
+        return []
+    rows = []
+    for line in LOG_PATH.read_text().splitlines():
+        if not line.strip():
+            continue
+        parts = line.split("\t")
+        if len(parts) == 5:
+            ts, role, action, resource, outcome = parts
+        elif len(parts) == 4:
+            ts, role, outcome, resource = parts
+            action = outcome.replace("_", " ").title()
+        else:
+            continue
+        rows.append({"ts": ts, "role": role, "action": action, "resource": resource, "outcome": outcome})
+    rows.sort(key=lambda r: r["ts"], reverse=True)
+    return rows
+
+
+# anonymization
+def anonymize_id(real_id, prefix: str = "") -> str:
+    """Stable pseudonym for a named entity, shown to VIEWER-role sessions.
+    Deterministic (same real_id -> same pseudonym every time) so a viewer can
+    still track one entity across screens without ever seeing its real name.
+    This is presentation-layer pseudonymization, not cryptographic security;
+    it should not be relied on to resist a determined re-identification
+    attempt.
+
+    Missing IDs (None, empty string, or the literal text "None") are shown
+    as "unknown" rather than being hashed into a pseudonym, since hashing a
+    missing value would misleadingly imply a real, distinct entity exists."""
+    if real_id is None:
+        return "unknown"
+    text = str(real_id).strip()
+    if not text or text.lower() == "none":
+        return "unknown"
+    digest = hashlib.sha256(_anon_salt() + text.encode("utf-8")).hexdigest()[:6].upper()
+    return f"{prefix}#{digest}" if prefix else f"#{digest}"
+
+
+def entity_label_for_list(
+    real_id,
+    prefix: str = "",
+    context: str = "",
+) -> str:
+    """Build ONE selector-option label. Never renders a widget (no
+    st.button), so it is safe to call in a loop when building the option
+    list for a selectbox/multiselect. This is the correct helper for
+    populating a list of many options; reveal_or_anonymize is for a single
+    already-selected item's detail panel and renders a real Reveal button,
+    which must never be called inside a loop or a format_func (doing so
+    creates one button per option on every rerun, an easy source of a
+    'column of Reveal buttons with no data' rendering bug).
+
+    ADMIN: real ID plus the supplied structural context (degree, community,
+    contract count, etc.), e.g. "IT01391810528 (degree 42, community 3)".
+    VIEWER: stable pseudonym plus the same structural context, e.g.
+    "S#4F2A1B (degree 42, community 3)" -- same information, no real name.
+    """
+    role = st.session_state.get("role")
+    # Same independent-of-role gate as reveal_or_anonymize(): even if role
+    # somehow held "ADMIN" in session state (session-state tampering, a
+    # future bug elsewhere), a public build still never emits a real ID
+    # from this function.
+    label = real_id if (role == ADMIN and not PUBLIC_BUILD) else anonymize_id(real_id, prefix)
+    if not label or (isinstance(real_id, str) is False and real_id is None):
+        label = "unknown"
+    return f"{label} ({context})" if context else str(label)
+
+
+def reveal_or_anonymize(
+    real_id: str,
+    resource_label: str,
+    anon_prefix: str = "",
+    key: str | None = None,
+) -> str | None:
+    """Core viewer-anonymization / admin-reveal pattern used on every named
+    field in RQ1/RQ2/RQ3. Returns the value to display:
+      - VIEWER: always the anonymized pseudonym (italicized by caller).
+      - ADMIN, not yet revealed this session: renders a 'Reveal' button and
+        returns None (caller shows a placeholder) until clicked.
+      - ADMIN, revealed: returns the real ID and logs the reveal exactly once
+        per key per session.
+    """
+    role = st.session_state.get("role")
+    if PUBLIC_BUILD:
+        # The reveal path is structurally unreachable in a public build: no
+        # Reveal button is ever rendered, and role can never be ADMIN here
+        # anyway (see authenticate() below), but this is the second,
+        # independent gate so a future caller mistake can't leak a real ID.
+        return anonymize_id(real_id, anon_prefix)
+
+    if role == VIEWER:
+        return anonymize_id(real_id, anon_prefix)
+
+    if role != ADMIN:
+        return anonymize_id(real_id, anon_prefix)
+
+    reveal_key = key or f"reveal::{resource_label}::{real_id}"
+    revealed = st.session_state.setdefault("_revealed", set())
+    if reveal_key in revealed:
+        if real_id is None or str(real_id).strip().lower() in ("", "none"):
+            return "unknown"
+        return real_id
+
+    if st.button("Reveal", key=f"btn_{reveal_key}"):
+        revealed.add(reveal_key)
+        log_action(ADMIN, "Reveal named entity", resource_label, "success")
+        st.rerun()
+    return None
+
+
+# core
+def register_user(username: str, password: str) -> tuple[bool, str]:
+    """Self-registration. Always creates a VIEWER account. Returns (ok, message)."""
+    username = username.strip()
+    if not username or not password:
+        return False, "Username and password are required."
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters."
+    store = _load_store()
+    if username in store["users"]:
+        return False, "That username is already taken."
+    salt_hex, hash_hex = _hash_password(password)
+    store["users"][username] = {
+        "salt": salt_hex,
+        "hash": hash_hex,
+        "role": VIEWER,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    _save_store(store)
+    log_action(VIEWER, "Register", username, "success")
+    return True, "Account created. You can now sign in."
+
+
+def authenticate(username: str, password: str) -> tuple[bool, str | None]:
+    """Returns (ok, role). Logs every sign-in attempt (both roles, success and
+    failure) to access.log. The attempted password is never logged.
+
+    In a public build, an ADMIN account authenticating correctly is still
+    refused here: this is the first of the two independent gates (the
+    second is reveal_or_anonymize()'s own PUBLIC_BUILD check) that keep the
+    admin role and the named-ID reveal path unreachable, not merely hidden.
+    """
+    username = username.strip()
+    store = _load_store()
+    user = store["users"].get(username)
+    if user is None:
+        log_action("-", "Sign in", username, "failure")
+        return False, None
+    ok = _verify_password(password, user["salt"], user["hash"])
+    role = user["role"]
+    if ok and role == ADMIN and PUBLIC_BUILD:
+        log_action(role, "Sign in", username, "denied_public_build")
+        return False, None
+    log_action(role, "Sign in", username, "success" if ok else "failure")
+    return ok, (role if ok else None)
+
+
+def change_password(username: str, old_password: str, new_password: str) -> tuple[bool, str]:
+    if len(new_password) < 8:
+        return False, "New password must be at least 8 characters."
+    store = _load_store()
+    user = store["users"].get(username)
+    if user is None:
+        return False, "Unknown user."
+    if not _verify_password(old_password, user["salt"], user["hash"]):
+        log_action(user["role"], "Change password", username, "failure")
+        return False, "Current password is incorrect."
+    salt_hex, hash_hex = _hash_password(new_password)
+    user["salt"], user["hash"] = salt_hex, hash_hex
+    _save_store(store)
+    log_action(user["role"], "Change password", username, "success")
+    return True, "Password changed."
+
+
+# UI
+def _render_login_and_register() -> None:
+    """Sign In screen, matching docs/design/PGI.dc.html: two role-framed
+    continue paths (examiner/viewer, author/admin) rather than a generic
+    login form, plus a "simulate access denied" affordance and the honesty
+    note about interim auth."""
+    from dashboard._theme import INK, INK_MUTED, INK_QUIET, FONT_SERIF
+
+    st.markdown(
+        f"<h1 style=\"font-family:{FONT_SERIF};font-size:32px;color:{INK};"
+        f"margin:0 0 6px;\">Sign in to PGI</h1>",
+        unsafe_allow_html=True,
+    )
+    if PUBLIC_BUILD:
+        st.markdown(
+            f"<div style='font-size:14.5px;color:{INK_MUTED};margin-bottom:20px;"
+            f"max-width:640px;'>This is the public build of Procurement Governance "
+            f"Intelligence: viewer access only. Named procurement entities are "
+            f"replaced with stable anonymized labels throughout every session.</div>",
+            unsafe_allow_html=True,
+        )
+        tab_viewer, tab_register = st.tabs(
+            ["Continue as examiner (viewer)", "Register a viewer account"]
+        )
+        tab_admin = None
+    else:
+        st.markdown(
+            f"<div style='font-size:14.5px;color:{INK_MUTED};margin-bottom:20px;"
+            f"max-width:640px;'>Procurement Governance Intelligence is a research "
+            f"publication with two access levels. Both can reach every screen: "
+            f"the difference is whether named procurement entities are shown or "
+            f"anonymized, and whether actions are logged.</div>",
+            unsafe_allow_html=True,
+        )
+        tab_viewer, tab_admin, tab_register = st.tabs(
+            ["Continue as examiner (viewer)", "Continue as author (admin)", "Register a viewer account"]
+        )
+
+    with tab_viewer:
+        st.caption(
+            "Examiner (viewer): every screen is visible, but named buyer, "
+            "supplier, and contract identifiers are replaced with stable "
+            "anonymized labels throughout your session. Nothing is ever "
+            "denied to a viewer."
+        )
+        with st.form("login_form_viewer"):
+            u = st.text_input("Username", key="viewer_user")
+            p = st.text_input("Password", type="password", key="viewer_pw")
+            submitted = st.form_submit_button("Continue as examiner (viewer)")
+        if submitted:
+            ok, role = authenticate(u, p)
+            if ok and role == VIEWER:
+                st.session_state["authed"] = True
+                st.session_state["username"] = u.strip()
+                st.session_state["role"] = role
+                st.rerun()
+            elif ok and role == ADMIN:
+                st.error("That account is an author (admin) account. Use the other tab.")
+            else:
+                st.error("Incorrect username or password.")
+        st.caption("No account yet? Use the \"Register a viewer account\" tab.")
+
+    if tab_admin is not None:
+        with tab_admin:
+            st.caption(
+                "Author (admin): named entities are visible. Every reveal of a "
+                "named entity, sign-in, and export is appended to the audit log."
+            )
+            with st.form("login_form_admin"):
+                u = st.text_input("Username", key="admin_user")
+                p = st.text_input("Password", type="password", key="admin_pw")
+                submitted = st.form_submit_button("Continue as author (admin)")
+            if submitted:
+                ok, role = authenticate(u, p)
+                if ok and role == ADMIN:
+                    st.session_state["authed"] = True
+                    st.session_state["username"] = u.strip()
+                    st.session_state["role"] = role
+                    st.rerun()
+                elif ok and role == VIEWER:
+                    st.error("That account is an examiner (viewer) account. Use the other tab.")
+                else:
+                    st.error("Incorrect username or password.")
+
+    with tab_register:
+        st.caption("New accounts are always created as examiner (viewer). There is no self-service path to author (admin).")
+        with st.form("register_form"):
+            ru = st.text_input("Choose a username", key="reg_user")
+            rp = st.text_input("Choose a password (min 8 characters)", type="password", key="reg_pw")
+            rp2 = st.text_input("Confirm password", type="password", key="reg_pw2")
+            reg_submitted = st.form_submit_button("Register")
+        if reg_submitted:
+            if rp != rp2:
+                st.error("Passwords do not match.")
+            else:
+                ok, msg = register_user(ru, rp)
+                (st.success if ok else st.error)(msg)
+
+    with st.expander("Simulate access denied", expanded=False):
+        st.caption(
+            "For demonstration only: shows the denial state a request for an "
+            "unsupported elevated action would render, without requiring a "
+            "real credential mismatch."
+        )
+        if st.button("Simulate a denied action"):
+            log_action("-", "Simulated denial", "demo", "denied")
+            st.error(
+                "Access denied (simulated). In this dashboard, the only "
+                "action actually gated behind a role check is revealing a "
+                "named entity or exporting the audit log, both admin-only "
+                "and both logged. Nothing else is ever denied to a signed-in "
+                "viewer."
+            )
+
+    st.markdown(
+        f"<div style='font-size:12.5px;color:{INK_QUIET};margin-top:28px;"
+        f"max-width:640px;'>Honesty note: this shared-secret / role-hash "
+        f"account system is an interim access control, not production-grade "
+        f"auth. A production deployment over named-supplier data should "
+        f"prefer OIDC with a named identity provider, or an authenticated "
+        f"reverse proxy.</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def render_change_password_form() -> None:
+    """ADMIN-only self-service password change. Call from a page that has
+    already passed require_auth(role=ADMIN) (or checks role itself)."""
+    username = st.session_state.get("username")
+    if not username or st.session_state.get("role") != ADMIN:
+        return
+    with st.expander("Change ADMIN password", expanded=False):
+        with st.form("change_password_form"):
+            old_pw = st.text_input("Current password", type="password", key="cp_old")
+            new_pw = st.text_input("New password (min 8 characters)", type="password", key="cp_new")
+            new_pw2 = st.text_input("Confirm new password", type="password", key="cp_new2")
+            submitted = st.form_submit_button("Update password")
+        if submitted:
+            if new_pw != new_pw2:
+                st.error("New passwords do not match.")
+            else:
+                ok, msg = change_password(username, old_pw, new_pw)
+                (st.success if ok else st.error)(msg)
+
+
+def require_auth(role: str | None = None) -> None:
+    """Guard for the top of every page/app entry point. Must be the first
+    Streamlit call (aside from st.set_page_config, which is allowed before
+    it). Renders the sign-in screen and calls st.stop() only when nobody is
+    authenticated yet.
+
+    Per the design's role model, VIEWER is never denied a screen; every
+    signed-in user (either role) can reach every page. `role=ADMIN` is used
+    only to gate a specific *page* that has no viewer-safe rendering at all
+    (currently: the Audit Log screen). Everywhere else (RQ1/RQ2/RQ3/etc.),
+    pages call require_auth() with no role argument and use
+    reveal_or_anonymize()/anonymize_id() internally to decide, per field,
+    whether to show real values (ADMIN, after an explicit reveal) or stable
+    anonymized pseudonyms (VIEWER, always).
+
+    Usage:
+        st.set_page_config(...)
+        from dashboard._auth import require_auth, ADMIN
+        require_auth()             # any authenticated user, used on almost every page
+        require_auth(role=ADMIN)   # ADMIN-only page (Audit Log only)
+    """
+    if not st.session_state.get("authed"):
+        _render_login_and_register()
+        st.stop()
+
+    if role is not None and st.session_state.get("role") != role:
+        st.warning(
+            "This screen (the audit log) is restricted to author (admin) "
+            "accounts, because it necessarily surfaces who did what, not "
+            "just anonymized activity counts. Every other screen in this "
+            "dashboard is available to your examiner (viewer) account, with "
+            "named entities anonymized."
+        )
+        st.stop()
+
+
+def render_logout_button() -> None:
+    """Sidebar identity + logout control. Call after require_auth() succeeds."""
+    from dashboard._components import role_badge
+
+    if st.session_state.get("authed"):
+        user = st.session_state.get("username", "?")
+        role = st.session_state.get("role", "?")
+        st.sidebar.markdown(role_badge(role), unsafe_allow_html=True)
+        st.sidebar.caption(f"Signed in as {user}, {ROLE_LONG_LABEL.get(role, role)}")
+        if st.sidebar.button("Log out"):
+            log_action(role, "Sign out", user, "success")
+            for k in ("authed", "username", "role"):
+                st.session_state.pop(k, None)
+            st.rerun()

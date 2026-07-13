@@ -72,8 +72,12 @@ docs/references.bib
 # raw dataset — never commit large parquets
 *.parquet
 
-# WIP scaffolding not yet locked
-src/dashboard/
+# src/dashboard/ tracked selectively: source only. Secrets, auth store,
+# logs, and the stray nested .streamlit/ (unrelated app_password key,
+# see DEPLOY.md) stay excluded.
+src/dashboard/_auth_store.json
+src/dashboard/logs/
+src/dashboard/.streamlit/
 
 # Generated plot outputs (rebuilt by make figures)
 results/
