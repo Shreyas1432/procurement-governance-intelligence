@@ -164,7 +164,7 @@ def run_rq2() -> bool:
         metrics = clf.train_all_models(X[train_mask], y[train_mask], X[test_mask], y[test_mask])
     metrics.update(split_meta)
 
-    # --- Honest headline metrics on the 2020 TEST split ---------------------
+    # Honest headline metrics on the 2020 TEST split
     # The operating threshold is chosen by maximising F1 on the VAL 2019 split
     # ONLY, then frozen and applied to the 2020 TEST split (the test labels never
     # influence threshold selection). XGBoost is the headline model; it is already
@@ -202,9 +202,9 @@ def run_rq2() -> bool:
             headline["precision"], headline["recall"], headline["f1_at_0p5"],
         )
     else:
-        logger.info("VAL 2019 unavailable or single-class — headline threshold metrics skipped")
+        logger.info("VAL 2019 unavailable or single-class, headline threshold metrics skipped")
 
-    # --- Honest risk scoring (no in-sample leakage) -------------------------
+    # Honest risk scoring (no in-sample leakage)
     # Training-period contracts are scored with out-of-fold probabilities so no
     # contract is scored by a model that was fitted on it. Test-period contracts
     # use held-out probabilities from models fitted on the training period only.
@@ -213,7 +213,7 @@ def run_rq2() -> bool:
     test_idx_mask = np.asarray(test_mask)
     X_train, y_train = X[train_idx_mask], y[train_idx_mask]
 
-    # --- Cross-validation diagnostics (corrected 2026-06-10) ----------------
+    # Cross-validation diagnostics (corrected 2026-06-10)
     # The previous non-shuffled StratifiedKFold(5) ran over the year-ordered
     # training block, which made fold 1 (earliest contracts) trivially separable
     # and produced a fold-1=1.000 artifact reported as 0.799 +/- 0.104. That
@@ -314,7 +314,7 @@ def run_rq2() -> bool:
     metrics["single_bid_rate"] = float((out["bid_count"] <= 1).cast(pl.Float64).mean())
     metrics["negotiated_restricted_rate"] = float(buyer_agg["negotiated_restricted_rate"].mean())
 
-    # SHAP analysis on the clean XGB model (RQ1 has no SHAP — deterministic by design).
+    # SHAP analysis on the clean XGB model (RQ1 has no SHAP; deterministic by design).
     # Skipped when the model is single-feature: a one-feature SHAP decomposition is
     # degenerate (every prediction's attribution is the lone feature). The value-only
     # interpretability artifact is a partial-dependence/calibration curve instead
@@ -331,12 +331,12 @@ def run_rq2() -> bool:
             )
         metrics.update(shap_meta)
     elif type(clf.xgb).__name__ == "XGBClassifier":
-        logger.info("Single-feature model (%s) — model SHAP skipped (degenerate); "
+        logger.info("Single-feature model (%s), model SHAP skipped (degenerate); "
                     "see rq2_value_only_pdp.png for partial dependence", clf.FEATURES)
     else:
-        logger.info("XGB not available — SHAP skipped (GBR fallback in use)")
+        logger.info("XGB not available, SHAP skipped (GBR fallback in use)")
 
-    # --- Reporting-integrity DIAGNOSTICS (value-only lock preserved) ---------
+    # Reporting-integrity DIAGNOSTICS (value-only lock preserved)
     # All blocks below are reporting/diagnostic only. They add NO feature, change
     # NO model/threshold, and leave the headline ROC-AUC untouched; every figure is
     # computed from arrays already produced in this run (or read from in-run JSON
@@ -351,7 +351,7 @@ def _emit_rq2_diagnostics(metrics, df, pdf, y, train_mask, test_mask, out, clf):
     """Assemble the RQ2 reporting-integrity diagnostic blocks (T1-T8) and write the
     candidate-disposition artifacts (T4) and the degenerate-correlation null (T2).
     Mutates ``metrics`` in place; writes no model or threshold."""
-    # ---- T1: population reconciliation -------------------------------------
+    # T1: population reconciliation
     val_mask = pdf["award_year"].between(min(VAL_YEARS), max(VAL_YEARS))
     n_train, n_val, n_test = int(train_mask.sum()), int(val_mask.sum()), int(test_mask.sum())
     train_pos = int(y[train_mask].sum())
@@ -426,7 +426,7 @@ def _emit_rq2_diagnostics(metrics, df, pdf, y, train_mask, test_mask, out, clf):
     )
     metrics["enrichment_denominator"] = {"high_risk_n": high_n, "low_risk_n": low_n}
 
-    # ---- T3: single-bidder definitions (denominator reconciliation) ---------
+    # T3: single-bidder definitions (denominator reconciliation)
     scored_obs = int(out.filter(pl.col("bid_count").is_not_null()).height)
     panel_obs = int(df.filter(pl.col("bid_count").is_not_null()).height)
     panel_rate = float((df["bid_count"] <= 1).cast(pl.Float64).mean() or 0.0)
@@ -476,7 +476,7 @@ def _emit_rq2_diagnostics(metrics, df, pdf, y, train_mask, test_mask, out, clf):
                           "differ only in POPULATION/denominator.",
     }
 
-    # ---- T2: rgov_single_bidder_corr degenerate-coverage diagnostic ---------
+    # T2: rgov_single_bidder_corr degenerate-coverage diagnostic
     buyer_agg = out.group_by("buyer_id").agg(
         pl.mean("ensemble_risk_prob").alias("r_gov"),
         ((pl.col("bid_count") <= 1).cast(pl.Float64)).mean().alias("single_bid_rate"),
@@ -512,7 +512,7 @@ def _emit_rq2_diagnostics(metrics, df, pdf, y, train_mask, test_mask, out, clf):
     merge_json(DATA_RESULTS / "rq2_feature_exploration_nulls.json",
                {"rgov_single_bidder_corr": corr_status})
 
-    # ---- T6: DeLong AUC-difference significance (2020 test, no refit) --------
+    # T6: DeLong AUC-difference significance (2020 test, no refit)
     tp = getattr(clf, "_test_probs", None)
     ty = getattr(clf, "_test_y", None)
     if tp is not None and ty is not None and len(np.unique(ty)) > 1:
@@ -530,7 +530,7 @@ def _emit_rq2_diagnostics(metrics, df, pdf, y, train_mask, test_mask, out, clf):
                     "point estimate; reported as computed.",
         }
 
-    # ---- T7: PR-AUC base-rate context --------------------------------------
+    # T7: PR-AUC base-rate context
     metrics["pr_auc_baseline"] = (test_pos / n_test) if n_test else 0.0
     metrics["pr_auc_baseline_note"] = (
         "pr_auc_baseline is the 2020-test positive rate -- the PR-AUC of a random "
@@ -538,13 +538,13 @@ def _emit_rq2_diagnostics(metrics, df, pdf, y, train_mask, test_mask, out, clf):
         "positive rate."
     )
 
-    # ---- T5: rf_cv_f1 annotation (metadata only) ---------------------------
+    # T5: rf_cv_f1 annotation (metadata only)
     metrics["rf_cv_f1_note"] = (
         "shuffled-CV F1; base-rate-inflated and NOT comparable to temporal-test F1 "
         "(0.494) due to 2019->2020 COVID base-rate drift."
     )
 
-    # ---- T8: metric framing labels (no new computation) --------------------
+    # T8: metric framing labels (no new computation)
     if isinstance(metrics.get("test_headline"), dict):
         metrics["test_headline"]["framing_label"] = "2020 point estimate"
     if isinstance(metrics.get("xgb_auc_cv_temporal"), dict):
@@ -552,7 +552,7 @@ def _emit_rq2_diagnostics(metrics, df, pdf, y, train_mask, test_mask, out, clf):
             "generalisation estimate (forward-chaining temporal CV)"
         )
 
-    # ---- T4: candidate-disposition table -----------------------------------
+    # T4: candidate-disposition table
     _write_feature_disposition(metrics)
 
 
@@ -879,11 +879,11 @@ def _auc(y_true, proba):
     except Exception:
         return 0.0
 
-# --- DeLong AUC-difference test (closed form, deterministic, no resampling) ----
+# DeLong AUC-difference test (closed form, deterministic, no resampling).
 # Implements the fast DeLong covariance estimator (Sun & Xu 2014; DeLong et al.
-# (1988) so two ROC-AUCs measured on the SAME 2020 test set can be compared with a
-# proper paired variance. Closed-form only no bootstrap  so reruns are
-# byte-identical. Diagnostic for T6; it does not alter any model or threshold.
+# 1988) so two ROC-AUCs measured on the SAME 2020 test set can be compared with a
+# proper paired variance. Closed-form, no bootstrap, so reruns are byte-identical.
+# Diagnostic for T6; it does not alter any model or threshold.
 def _delong_midrank(x):
     order = np.argsort(x)
     ranked = x[order]
@@ -997,12 +997,12 @@ def run_shap(clf_xgb, X_train: pd.DataFrame, y_full: pd.Series,
     Compute SHAP values for the trained XGB model and export plots + HTML to DATA_RESULTS.
 
     Uses XGBoost's native pred_contribs (mathematically identical to TreeExplainer SHAP
-    values) to avoid a version-mismatch issue between shap and xgboost 3.x.  Produces:
-      - rq2_shap_summary.png   — beeswarm (SHAP value vs feature value per row)
-      - rq2_shap_bar.png       — mean |SHAP| bar chart
-      - rq2_shap_global.html   — global ranking table
-      - rq2_shap_local.png     — waterfall-style chart for one HIGH-risk contract
-      - rq2_shap_local.html    — local explanation table
+    values) to avoid a version-mismatch issue between shap and xgboost 3.x. Produces:
+      - rq2_shap_summary.png:  beeswarm (SHAP value vs feature value per row)
+      - rq2_shap_bar.png:      mean |SHAP| bar chart
+      - rq2_shap_global.html:  global ranking table
+      - rq2_shap_local.png:    waterfall-style chart for one HIGH-risk contract
+      - rq2_shap_local.html:   local explanation table
 
     Returns a dict with keys: shap_top3_features, shap_sample_n, shap_seed,
     supplier_centrality_shap_rank.
@@ -1010,7 +1010,7 @@ def run_shap(clf_xgb, X_train: pd.DataFrame, y_full: pd.Series,
     try:
         import xgboost as xgb_lib
     except ImportError:
-        logger.warning("XGBoost not available — skipping SHAP analysis")
+        logger.warning("XGBoost not available, skipping SHAP analysis")
         return {}
 
     try:
@@ -1018,7 +1018,7 @@ def run_shap(clf_xgb, X_train: pd.DataFrame, y_full: pd.Series,
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
     except ImportError:
-        logger.warning("matplotlib not available — skipping SHAP plots")
+        logger.warning("matplotlib not available, skipping SHAP plots")
         return {}
 
     # Build a stratified sample so both classes are represented
@@ -1028,7 +1028,7 @@ def run_shap(clf_xgb, X_train: pd.DataFrame, y_full: pd.Series,
     n1   = min(sample_n // 2, len(idx1))
     n0   = sample_n - n1
     if n0 == 0 or n1 == 0:
-        logger.warning("SHAP: not enough samples in one class — skipping")
+        logger.warning("SHAP: not enough samples in one class, skipping")
         return {}
     s_idx  = list(rng.choice(idx0, n0, replace=False)) + list(rng.choice(idx1, n1, replace=False))
     X_samp = X_train.loc[s_idx, features]
@@ -1051,7 +1051,7 @@ def run_shap(clf_xgb, X_train: pd.DataFrame, y_full: pd.Series,
     top3     = [f for f, _ in ranking[:3]]
     logger.info("SHAP top-3 features: %s", top3)
 
-    # --- Global: beeswarm dot plot ---
+    # Global: beeswarm dot plot
     try:
         DATA_RESULTS.mkdir(parents=True, exist_ok=True)
         rng_vis = np.random.default_rng(0)
@@ -1070,7 +1070,7 @@ def run_shap(clf_xgb, X_train: pd.DataFrame, y_full: pd.Series,
         ax.set_yticklabels(feats_s[::-1])
         ax.axvline(0, color="black", lw=0.8)
         ax.set_xlabel("SHAP value  (positive = pushes toward risk_label=1)")
-        ax.set_title(f"XGB — SHAP Beeswarm  (n={actual_n}, seed={seed})")
+        ax.set_title(f"XGB SHAP Beeswarm  (n={actual_n}, seed={seed})")
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(0, 1))   # type: ignore[attr-defined]
         sm.set_array([])
         plt.colorbar(sm, ax=ax, label="Feature value (scaled)", shrink=0.7)
@@ -1083,7 +1083,7 @@ def run_shap(clf_xgb, X_train: pd.DataFrame, y_full: pd.Series,
         fig, ax = plt.subplots(figsize=(8, 4))
         ax.barh(feats_s[::-1], vals_s[::-1], color="#2c6fad")
         ax.set_xlabel("Mean |SHAP value|")
-        ax.set_title(f"XGB — Global Feature Importance (SHAP, n={actual_n}, seed={seed})")
+        ax.set_title(f"XGB Global Feature Importance (SHAP, n={actual_n}, seed={seed})")
         for j, (f, v) in enumerate(zip(feats_s[::-1], vals_s[::-1])):
             ax.text(v + max(vals_s) * 0.01, j, f"{v:.4f}", va="center", fontsize=8)
         plt.tight_layout()
@@ -1100,7 +1100,7 @@ def run_shap(clf_xgb, X_train: pd.DataFrame, y_full: pd.Series,
         colors = ["#d73027" if v > 0 else "#4575b4" for v in local_sv]
         bars = ax.barh(features, local_sv, color=colors)
         ax.axvline(0, color="black", lw=0.8)
-        ax.set_title(f"XGB Local Explanation — HIGH-risk contract  (pred prob={hi_prob:.3f})")
+        ax.set_title(f"XGB Local Explanation: HIGH-risk contract  (pred prob={hi_prob:.3f})")
         ax.set_xlabel("SHAP value  (positive = pushes toward risk_label=1)")
         for bar, sv_v, feat in zip(bars, local_sv, features):
             fv = feat_vals[feat]
@@ -1122,7 +1122,7 @@ def run_shap(clf_xgb, X_train: pd.DataFrame, y_full: pd.Series,
         colors = ["#d73027" if v > 0 else "#4575b4" for v in lo_sv]
         bars = ax.barh(features, lo_sv, color=colors)
         ax.axvline(0, color="black", lw=0.8)
-        ax.set_title(f"XGB Local Explanation — LOW-risk contract  (pred prob={lo_prob:.3f})")
+        ax.set_title(f"XGB Local Explanation: LOW-risk contract  (pred prob={lo_prob:.3f})")
         ax.set_xlabel("SHAP value  (positive = pushes toward risk_label=1)")
         for bar, sv_v, feat in zip(bars, lo_sv, features):
             fv = lo_vals[feat]
@@ -1151,7 +1151,7 @@ def run_shap(clf_xgb, X_train: pd.DataFrame, y_full: pd.Series,
             ax.axhline(0, color="black", lw=0.8)
             ax.set_xlabel(f"{feat} value")
             ax.set_ylabel(f"SHAP value for {feat}")
-            ax.set_title(f"XGB — SHAP Dependence: {feat}  (n={actual_n}, seed={seed})")
+            ax.set_title(f"XGB SHAP Dependence: {feat}  (n={actual_n}, seed={seed})")
             plt.tight_layout()
             plt.savefig(DATA_RESULTS / f"rq2_shap_dependence_{feat}.png", dpi=150, bbox_inches="tight")
             plt.close("all")
@@ -1172,7 +1172,7 @@ def run_shap(clf_xgb, X_train: pd.DataFrame, y_full: pd.Series,
             "<html><head><title>SHAP Global</title>"
             "<style>body{font-family:sans-serif;margin:2em}table{border-collapse:collapse}"
             "td,th{border:1px solid #ccc;padding:6px 12px}</style></head><body>"
-            f"<h2>XGB SHAP — Global Feature Ranking (n={actual_n}, seed={seed})</h2>"
+            f"<h2>XGB SHAP: Global Feature Ranking (n={actual_n}, seed={seed})</h2>"
             "<p>Computed via XGBoost native pred_contribs. "
             "Column <em>native_fi</em> is the model's gain-based feature importance for comparison.</p>"
             f"{shap_table.to_html(index=False, float_format='%.5f')}"
@@ -1192,7 +1192,7 @@ def run_shap(clf_xgb, X_train: pd.DataFrame, y_full: pd.Series,
             "<html><head><title>SHAP Local</title>"
             "<style>body{font-family:sans-serif;margin:2em}table{border-collapse:collapse}"
             "td,th{border:1px solid #ccc;padding:6px 12px}</style></head><body>"
-            f"<h2>XGB SHAP — Local Explanation (pred risk_prob={hi_prob:.4f})</h2>"
+            f"<h2>XGB SHAP: Local Explanation (pred risk_prob={hi_prob:.4f})</h2>"
             "<p>Red (positive SHAP) = pushes toward HIGH risk. "
             "Blue (negative) = pushes toward LOW risk.</p>"
             f"{local_df.to_html(index=False, float_format='%.5f')}"
