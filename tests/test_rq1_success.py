@@ -81,8 +81,8 @@ def test_resilience_std():
 
 def test_modularity_null_model_present():
     # Verify modularity null-model significance fields are present in the metrics
-    # file and have plausible numeric values.  The actual p-value is not asserted
-    # here — it is an empirical result reported honestly.
+    # file and have plausible numeric values. The actual p-value is not asserted
+    # here, it is an empirical result reported honestly.
     path = DATA_RESULTS / "rq1_success_metrics.json"
     assert path.exists()
     with open(path) as f:
@@ -114,7 +114,7 @@ def test_modularity_null_model_significant():
 def test_criteria_gates_only():
     # The criteria dict contains only the substantive pass/fail gates
     # (modularity, resilience_std). dependency_single_bidder_corr and
-    # ari_stability are reported diagnostics, not gates — see
+    # ari_stability are reported diagnostics, not gates, see
     # docs/THRESHOLD_JUSTIFICATION.md Section 9.
     path = DATA_RESULTS / "rq1_success_metrics.json"
     assert path.exists()
